@@ -176,9 +176,7 @@ const BILLING_DESCRIPTOR = "[ADD CARD STATEMENT DESCRIPTOR]";
 // configuration, not a secret API credential.
 const BUNNY_STREAM_CDN_HOSTNAME = "vz-356f665c-64d.b-cdn.net";
 
-const VIDEO_FILE =
-  "/videos/video-output-6677BD65-1317-4C4E-9DF5-2BB89429679C-1.mov";
-
+const VIDEO_FILE = "";
 const EMPTY_VIDEO_FORM: VideoFormState = {
   title: "",
   slug: "",
