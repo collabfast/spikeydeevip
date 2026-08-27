@@ -4161,15 +4161,7 @@ function App() {
     return null;
   };
 
-  const cancelDevelopmentAccess = () => {
-    setMembership({
-      level: "none",
-      expiresAt: null,
-      accessSessionId: null,
-      customerEmail: membership.customerEmail,
-    });
-    localStorage.removeItem(MEMBERSHIP_STORAGE_KEY);
-  };
+
 
   /* =======================================================
      PER-VIDEO AUTHORIZATION
