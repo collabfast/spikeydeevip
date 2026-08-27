@@ -2206,7 +2206,33 @@ function StudioDashboard({
   const [errorMessage, setErrorMessage] = useState("");
   const [uploadStatus, setUploadStatus] = useState("");
   const [uploadProgress, setUploadProgress] = useState(0);
+type HomepageHeroSettings = {
+  setting_key: string;
+  featured_video_id: string | null;
+  hero_title: string | null;
+  hero_subtitle: string | null;
+  hero_description: string | null;
+  teaser_start_seconds: number;
+  teaser_end_seconds: number | null;
+  autoplay: boolean;
+  loop_teaser: boolean;
+};
 
+const [heroSettings, setHeroSettings] = useState<HomepageHeroSettings>({
+  setting_key: "homepage_hero",
+  featured_video_id: null,
+  hero_title: "Featured Release",
+  hero_subtitle: "SPIKEYDEE VIP ORIGINAL",
+  hero_description: "Watch the latest featured release from Spikeydee VIP.",
+  teaser_start_seconds: 0,
+  teaser_end_seconds: null,
+  autoplay: true,
+  loop_teaser: true,
+});
+
+const [heroSaving, setHeroSaving] = useState(false);
+const [heroMessage, setHeroMessage] = useState("");
+const [heroError, setHeroError] = useState("");
   type BunnyUploadCredentials = {
     success?: boolean;
     videoId: string;
@@ -2235,7 +2261,100 @@ function StudioDashboard({
   useEffect(() => {
     if (profile.is_admin) void loadVideos();
   }, [profile.is_admin]);
+const loadHeroSettings = async () => {
+  const { data, error } = await supabase
+    .from("site_settings")
+    .select(
+      `
+        setting_key,
+        featured_video_id,
+        hero_title,
+        hero_subtitle,
+        hero_description,
+        teaser_start_seconds,
+        teaser_end_seconds,
+        autoplay,
+        loop_teaser
+      `
+    )
+    .eq("setting_key", "homepage_hero")
+    .single();
 
+  if (error) {
+    console.error("Could not load homepage hero settings:", error);
+    setHeroError("Could not load homepage hero settings.");
+    return;
+  }
+
+  if (data) {
+    setHeroSettings({
+      setting_key: data.setting_key,
+      featured_video_id: data.featured_video_id,
+      hero_title: data.hero_title,
+      hero_subtitle: data.hero_subtitle,
+      hero_description: data.hero_description,
+      teaser_start_seconds: data.teaser_start_seconds ?? 0,
+      teaser_end_seconds: data.teaser_end_seconds,
+      autoplay: data.autoplay ?? true,
+      loop_teaser: data.loop_teaser ?? true,
+    });
+  }
+};
+
+useEffect(() => {
+  if (profile.is_admin) {
+    void loadHeroSettings();
+  }
+}, [profile.is_admin]);
+
+const updateHeroSetting = <
+  K extends keyof HomepageHeroSettings
+>(
+  key: K,
+  value: HomepageHeroSettings[K]
+) => {
+  setHeroSettings((current) => ({
+    ...current,
+    [key]: value,
+  }));
+};
+
+const saveHeroSettings = async () => {
+  setHeroSaving(true);
+  setHeroMessage("");
+  setHeroError("");
+
+  const { error } = await supabase
+    .from("site_settings")
+    .upsert(
+      {
+        setting_key: "homepage_hero",
+        featured_video_id: heroSettings.featured_video_id,
+        hero_title: heroSettings.hero_title,
+        hero_subtitle: heroSettings.hero_subtitle,
+        hero_description: heroSettings.hero_description,
+        teaser_start_seconds:
+          heroSettings.teaser_start_seconds ?? 0,
+        teaser_end_seconds:
+          heroSettings.teaser_end_seconds,
+        autoplay: heroSettings.autoplay,
+        loop_teaser: heroSettings.loop_teaser,
+        updated_at: new Date().toISOString(),
+      },
+      {
+        onConflict: "setting_key",
+      }
+    );
+
+  if (error) {
+    console.error("Could not save homepage hero settings:", error);
+    setHeroError("Could not save homepage hero settings.");
+  } else {
+    setHeroMessage("Homepage hero settings saved.");
+  }
+
+  setHeroSaving(false);
+};
   const updateForm = <K extends keyof VideoFormState>(
     key: K,
     value: VideoFormState[K]
@@ -2650,6 +2769,350 @@ function StudioDashboard({
             </button>
           </div>
 
+         {/* =====================================================
+    HOMEPAGE FEATURED TEASER EDITOR
+===================================================== */}
+<div
+  style={{
+    padding: "26px",
+    border: "1px solid var(--border)",
+    borderRadius: "18px",
+    marginBottom: "36px",
+    background: "#101010",
+  }}
+>
+  <span className="section-kicker">HOMEPAGE FEATURED TEASER</span>
+
+  <h2 style={{ marginTop: "8px", marginBottom: "8px" }}>
+    Featured Hero
+  </h2>
+
+  <p
+    style={{
+      color: "var(--text-muted)",
+      lineHeight: 1.6,
+      marginTop: 0,
+      marginBottom: "24px",
+    }}
+  >
+    Choose which uploaded Bunny Stream release appears as the cinematic
+    centerpiece on the public homepage. You can change this at any time
+    without redeploying the site.
+  </p>
+
+  <div
+    style={{
+      display: "grid",
+      gap: "18px",
+    }}
+  >
+    {/* FEATURED VIDEO */}
+    <div style={uploadBoxStyle}>
+      <span className="section-kicker">FEATURED RELEASE</span>
+      <h3 style={{ marginTop: "8px" }}>Choose Homepage Video</h3>
+
+      <select
+        value={heroSettings.featured_video_id ?? ""}
+        onChange={(event) =>
+          updateHeroSetting(
+            "featured_video_id",
+            event.target.value || null
+          )
+        }
+        style={fieldStyle}
+      >
+        <option value="">Select an uploaded video...</option>
+
+        {videos
+          .filter((video) => Boolean(video.bunny_video_id))
+          .map((video) => (
+            <option
+              key={video.bunny_video_id}
+              value={video.bunny_video_id ?? ""}
+            >
+              {video.title}
+            </option>
+          ))}
+      </select>
+
+      <p
+        style={{
+          color: "var(--text-muted)",
+          marginBottom: 0,
+          lineHeight: 1.5,
+        }}
+      >
+        The selected Bunny Stream video will supply the hero artwork and
+        teaser video.
+      </p>
+    </div>
+
+    {/* HERO COPY */}
+    <div style={uploadBoxStyle}>
+      <span className="section-kicker">HERO COPY</span>
+      <h3 style={{ marginTop: "8px" }}>Homepage Presentation</h3>
+
+      <div
+        style={{
+          display: "grid",
+          gap: "14px",
+        }}
+      >
+        <label>
+          <span
+            style={{
+              display: "block",
+              marginBottom: "7px",
+              fontWeight: 700,
+            }}
+          >
+            Hero Title
+          </span>
+
+          <input
+            type="text"
+            value={heroSettings.hero_title ?? ""}
+            onChange={(event) =>
+              updateHeroSetting("hero_title", event.target.value)
+            }
+            placeholder="Featured release title"
+            style={fieldStyle}
+          />
+        </label>
+
+        <label>
+          <span
+            style={{
+              display: "block",
+              marginBottom: "7px",
+              fontWeight: 700,
+            }}
+          >
+            Kicker / Subtitle
+          </span>
+
+          <input
+            type="text"
+            value={heroSettings.hero_subtitle ?? ""}
+            onChange={(event) =>
+              updateHeroSetting("hero_subtitle", event.target.value)
+            }
+            placeholder="SPIKEYDEE VIP ORIGINAL"
+            style={fieldStyle}
+          />
+        </label>
+
+        <label>
+          <span
+            style={{
+              display: "block",
+              marginBottom: "7px",
+              fontWeight: 700,
+            }}
+          >
+            Description
+          </span>
+
+          <textarea
+            value={heroSettings.hero_description ?? ""}
+            onChange={(event) =>
+              updateHeroSetting(
+                "hero_description",
+                event.target.value
+              )
+            }
+            placeholder="Short description shown over the featured teaser."
+            rows={4}
+            style={{
+              ...fieldStyle,
+              minHeight: "120px",
+              resize: "vertical",
+            }}
+          />
+        </label>
+      </div>
+    </div>
+
+    {/* TEASER PLAYBACK */}
+    <div style={uploadBoxStyle}>
+      <span className="section-kicker">TEASER PLAYBACK</span>
+      <h3 style={{ marginTop: "8px" }}>Preview Timing</h3>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns:
+            "repeat(auto-fit, minmax(220px, 1fr))",
+          gap: "14px",
+        }}
+      >
+        <label>
+          <span
+            style={{
+              display: "block",
+              marginBottom: "7px",
+              fontWeight: 700,
+            }}
+          >
+            Start Time (seconds)
+          </span>
+
+          <input
+            type="number"
+            min="0"
+            step="1"
+            value={heroSettings.teaser_start_seconds}
+            onChange={(event) =>
+              updateHeroSetting(
+                "teaser_start_seconds",
+                Math.max(0, Number(event.target.value) || 0)
+              )
+            }
+            style={fieldStyle}
+          />
+        </label>
+
+        <label>
+          <span
+            style={{
+              display: "block",
+              marginBottom: "7px",
+              fontWeight: 700,
+            }}
+          >
+            End Time (seconds)
+          </span>
+
+          <input
+            type="number"
+            min="0"
+            step="1"
+            value={heroSettings.teaser_end_seconds ?? ""}
+            onChange={(event) =>
+              updateHeroSetting(
+                "teaser_end_seconds",
+                event.target.value === ""
+                  ? null
+                  : Math.max(0, Number(event.target.value) || 0)
+              )
+            }
+            placeholder="Optional"
+            style={fieldStyle}
+          />
+        </label>
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: "22px",
+          marginTop: "20px",
+        }}
+      >
+        <label
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "9px",
+            cursor: "pointer",
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={heroSettings.autoplay}
+            onChange={(event) =>
+              updateHeroSetting("autoplay", event.target.checked)
+            }
+          />
+
+          <span>Autoplay muted teaser</span>
+        </label>
+
+        <label
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "9px",
+            cursor: "pointer",
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={heroSettings.loop_teaser}
+            onChange={(event) =>
+              updateHeroSetting("loop_teaser", event.target.checked)
+            }
+          />
+
+          <span>Loop teaser</span>
+        </label>
+      </div>
+
+      <p
+        style={{
+          color: "var(--text-muted)",
+          marginBottom: 0,
+          marginTop: "18px",
+          lineHeight: 1.5,
+        }}
+      >
+        The homepage teaser will be muted when autoplay is enabled.
+        Visitors will still need VIP access to watch protected full
+        releases.
+      </p>
+    </div>
+
+    {/* SAVE */}
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        alignItems: "center",
+        gap: "16px",
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => void saveHeroSettings()}
+        disabled={heroSaving}
+        style={{
+          minHeight: "48px",
+          padding: "0 22px",
+          borderRadius: "10px",
+          border: "1px solid var(--border)",
+          fontWeight: 800,
+          cursor: heroSaving ? "wait" : "pointer",
+          opacity: heroSaving ? 0.65 : 1,
+        }}
+      >
+        {heroSaving ? "Saving..." : "Save Homepage Hero"}
+      </button>
+
+      {heroMessage && (
+        <span
+          style={{
+            color: "#fff",
+            fontWeight: 700,
+          }}
+        >
+          {heroMessage}
+        </span>
+      )}
+
+      {heroError && (
+        <span
+          style={{
+            color: "#ff6b6b",
+            fontWeight: 700,
+          }}
+        >
+          {heroError}
+        </span>
+      )}
+    </div>
+  </div>
+</div>
           <div
             style={{
               padding: "26px",
