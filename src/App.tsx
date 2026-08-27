@@ -4522,7 +4522,27 @@ function App() {
     useState<MembershipState>(
       loadStoredMembership
     );
+const [publicHeroSettings, setPublicHeroSettings] = useState<{
+  featured_video_id: string | null;
+  hero_title: string | null;
+  hero_subtitle: string | null;
+  hero_description: string | null;
+  teaser_start_seconds: number;
+  teaser_end_seconds: number | null;
+  autoplay: boolean;
+  loop_teaser: boolean;
+}>({
+  featured_video_id: null,
+  hero_title: "Featured Release",
+  hero_subtitle: "SPIKEYDEE VIP ORIGINAL",
+  hero_description: "Watch the latest featured release from Spikeydee VIP.",
+  teaser_start_seconds: 0,
+  teaser_end_seconds: null,
+  autoplay: true,
+  loop_teaser: true,
+});
 
+const [publicHeroLoading, setPublicHeroLoading] = useState(true);
   const [
     favorites,
     setFavorites,
@@ -4767,7 +4787,50 @@ function App() {
   /* =======================================================
      PUBLIC CATALOG
      ======================================================= */
+const loadPublicHeroSettings = async () => {
+  setPublicHeroLoading(true);
 
+  const { data, error } = await supabase
+    .from("site_settings")
+    .select(
+      `
+        featured_video_id,
+        hero_title,
+        hero_subtitle,
+        hero_description,
+        teaser_start_seconds,
+        teaser_end_seconds,
+        autoplay,
+        loop_teaser
+      `
+    )
+    .eq("setting_key", "homepage_hero")
+    .single();
+
+  if (error) {
+    console.error(
+      "Could not load public homepage hero settings:",
+      error
+    );
+    setPublicHeroLoading(false);
+    return;
+  }
+
+  if (data) {
+    setPublicHeroSettings({
+      featured_video_id: data.featured_video_id,
+      hero_title: data.hero_title,
+      hero_subtitle: data.hero_subtitle,
+      hero_description: data.hero_description,
+      teaser_start_seconds: data.teaser_start_seconds ?? 0,
+      teaser_end_seconds: data.teaser_end_seconds,
+      autoplay: data.autoplay ?? true,
+      loop_teaser: data.loop_teaser ?? true,
+    });
+  }
+
+  setPublicHeroLoading(false);
+};
   const loadPublicCatalog =
     async () => {
       setCatalogLoading(
@@ -4850,6 +4913,7 @@ function App() {
 
   useEffect(() => {
     void loadPublicCatalog();
+    void loadPublicHeroSettings();
   }, []);
 
   /* =======================================================
@@ -4971,8 +5035,11 @@ function App() {
       : fallbackPopular;
 
   const heroItem =
-    featuredItems[0] ??
-    fallbackFeatured[0];
+  publicCatalog.find(
+    (item) => item.contentId === publicHeroSettings.featured_video_id
+  ) ??
+  featuredItems[0] ??
+  fallbackFeatured[0];
 
   useEffect(() => {
     const syncVideoRoute = () => {
@@ -5639,82 +5706,115 @@ function App() {
         />
       ) : (
         <main>
-          <section className="hero">
-            <div className="hero-overlay" />
+<section className="hero">
+  {heroItem && (
+    <>
+      {heroItem.thumbnailUrl ? (
+        <img
+          className="hero-background"
+          src={heroItem.thumbnailUrl}
+          alt=""
+          aria-hidden="true"
+        />
+      ) : null}
 
-            <div className="hero-content">
-              <span className="hero-kicker">
-                SPIKEYDEE VIP ORIGINAL
-              </span>
+      <div className="hero-overlay" />
 
-              <h1>
-                Premium.
-                <br />
-                Private.
-                <br />
-                Yours.
-              </h1>
+      <div className="hero-content">
+        <span className="hero-kicker">
+          SPIKEYDEE VIP ORIGINAL
+        </span>
 
-              <p className="hero-description">
-                Browse the catalog, choose your membership, and unlock premium
-                Spikeydee VIP releases through secure CCBill checkout.
-              </p>
+        <h1>
+          {publicHeroSettings.hero_title || heroItem.title}
+        </h1>
 
-              <div className="hero-meta">
-                <span>
-                  2 Day Pass
-                </span>
+        {(publicHeroSettings.hero_subtitle || heroItem.subtitle) && (
+          <p className="hero-subtitle">
+            {publicHeroSettings.hero_subtitle || heroItem.subtitle}
+          </p>
+        )}
 
-                <span>
-                  {TWO_DAY_PRICE}
-                </span>
+        <p className="hero-description">
+          {publicHeroSettings.hero_description ||
+            heroItem.description ||
+            "Watch the latest featured release from Spikeydee VIP."}
+        </p>
 
-                <span>
-                  •
-                </span>
+        <div className="hero-meta">
+          {heroItem.duration && (
+            <span>{heroItem.duration}</span>
+          )}
 
-                <span>
-                  VIP Memberships
-                </span>
+          {heroItem.category && (
+            <span>{heroItem.category}</span>
+          )}
 
-                <span>
-                  From {TWO_DAY_PRICE}
-                </span>
-              </div>
+          <span>VIP</span>
+        </div>
 
-              <div className="hero-actions">
-                <button
-                  type="button"
-                  className="primary-button"
-                  onClick={() =>
-                    openItem(
-                      heroItem
-                    )
-                  }
-                >
-                  {canWatchVideo(
-                    heroItem
-                  )
-                    ? "▶ Watch Now"
-                    : "🔒 View Premium"}
-                </button>
+        <div className="hero-actions">
+          <button
+            type="button"
+            className="primary-button"
+            onClick={() => openItem(heroItem)}
+          >
+            {canWatchVideo(heroItem)
+              ? "▶ Watch Now"
+              : "🔒 View Premium"}
+          </button>
 
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={() =>
-                    setAccessOpen(
-                      true
-                    )
-                  }
-                >
-                  {accessActive && membership.level !== "none"
-                    ? `✓ ${PLAN_LABELS[membership.level as PaidPlan]}`
-                    : "Choose Membership"}
-                </button>
-              </div>
-            </div>
-          </section>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => setAccessOpen(true)}
+          >
+            {accessActive && membership.level !== "none"
+              ? `${PLAN_LABELS[membership.level as PaidPlan]}`
+              : "Choose Membership"}
+          </button>
+        </div>
+      </div>
+    </>
+  )}
+
+  {!heroItem && !publicHeroLoading && (
+    <>
+      <div className="hero-overlay" />
+
+      <div className="hero-content">
+        <span className="hero-kicker">
+          SPIKEYDEE VIP ORIGINAL
+        </span>
+
+        <h1>
+          {publicHeroSettings.hero_title || "Premium. Private. Yours."}
+        </h1>
+
+        {publicHeroSettings.hero_subtitle && (
+          <p className="hero-subtitle">
+            {publicHeroSettings.hero_subtitle}
+          </p>
+        )}
+
+        <p className="hero-description">
+          {publicHeroSettings.hero_description ||
+            "Exclusive releases, original series, and premium VIP experiences."}
+        </p>
+
+        <div className="hero-actions">
+          <button
+            type="button"
+            className="primary-button"
+            onClick={() => setAccessOpen(true)}
+          >
+            Explore VIP
+          </button>
+        </div>
+      </div>
+    </>
+  )}
+</section>
 
           <div className="content-wrapper">
             {catalogLoading && (
