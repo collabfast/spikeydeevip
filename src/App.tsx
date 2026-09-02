@@ -5,6 +5,7 @@ import * as tus from "tus-js-client";
 
 import { supabase } from "./lib/supabase";
 import "./App.css";
+import spikeydeeVipLogo from "./assets/spikeydeevip-logo.png";
 
 /* =========================================================
    TYPES
@@ -26,6 +27,31 @@ type MembershipState = {
   expiresAt: string | null;
   accessSessionId: string | null;
   customerEmail: string | null;
+};
+
+type CheckoutStatus =
+  | "pending"
+  | "paid"
+  | "failed"
+  | "cancelled"
+  | "expired";
+
+type CheckoutStatusResponse = {
+  ok: boolean;
+  status: CheckoutStatus;
+  plan?: PaidPlan;
+  email?: string;
+  expiresAt?: string | null;
+  accessSessionId?: string | null;
+  message?: string;
+};
+
+type CheckoutActivationResponse = {
+  ok: boolean;
+  email: string;
+  plan: PaidPlan;
+  expiresAt: string | null;
+  accessSessionId: string;
 };
 
 type ContentItem = {
@@ -106,6 +132,41 @@ type VideoRecord = {
   created_by: string | null;
 };
 
+type HomepageBanner = {
+  id: string;
+  image_url: string;
+  eyebrow: string | null;
+  title: string | null;
+  subtitle: string | null;
+  button_text: string | null;
+  button_link: string | null;
+  sort_order: number;
+  is_published: boolean;
+  created_at: string;
+};
+
+type HomepageTile = {
+  id: string;
+  image_url: string;
+  title: string | null;
+  subtitle: string | null;
+  button_text: string | null;
+  button_link: string | null;
+  sort_order: number;
+  is_published: boolean;
+  created_at: string;
+};
+
+type HomepageBrand = {
+  id: string;
+  logo_url: string;
+  name: string | null;
+  sort_order: number;
+  is_published: boolean;
+  created_at: string;
+  updated_at?: string;
+  created_by?: string | null;
+};
 type VideoFormState = {
   title: string;
   slug: string;
@@ -148,15 +209,14 @@ const PLAN_LABELS: Record<PaidPlan, string> = {
   two_day_pass: "2 Day Pass",
 };
 
-const CCBILL_CHECKOUT_URLS: Record<PaidPlan, string> = {
-  lifetime: import.meta.env.VITE_CCBILL_LIFETIME_URL ?? "",
-  twelve_month: import.meta.env.VITE_CCBILL_12_MONTH_URL ?? "",
-  thirty_day: import.meta.env.VITE_CCBILL_30_DAY_URL ?? "",
-  two_day_pass: import.meta.env.VITE_CCBILL_2_DAY_URL ?? "",
-};
+
 
 const AGE_GATE_STORAGE_KEY =
   "spikeydeevip-age-verified";
+
+const MAX_HOMEPAGE_BANNERS = 6;
+const MAX_HOMEPAGE_TILES = 6;
+const MAX_HOMEPAGE_BRANDS = 12;
 
 /*
   Replace these placeholders with your real business details before launch.
@@ -168,8 +228,8 @@ const BILLING_SUPPORT_PHONE = "888-596-9279";
 const COMPLAINTS_EMAIL = "spikeydeevip@gmail.com";
 const BUSINESS_NAME = "Spikeydee VIP";
 const BUSINESS_ADDRESS = "[ADD BUSINESS ADDRESS]";
-const RECORDS_CUSTODIAN_NAME = "[ADD RECORDS CUSTODIAN NAME]";
-const RECORDS_CUSTODIAN_ADDRESS = "[ADD RECORDS CUSTODIAN ADDRESS]";
+const RECORDS_CUSTODIAN_NAME = "Noah Wayne Curd";
+const RECORDS_CUSTODIAN_ADDRESS = "[6605 Grand Montecito Pkwy, Suite 100, Las Vegas, NV 89149, USA]";
 const BILLING_DESCRIPTOR = "[ADD CARD STATEMENT DESCRIPTOR]";
 
 // Bunny Stream CDN hostname for this video library. This is public delivery
@@ -473,11 +533,18 @@ function loadAgeVerification() {
    VIP ACCESS / CHECKOUT PLACEHOLDER
    ========================================================= */
 
+/* =========================================================
+   VIP ACCESS / SIGNUP FLOW
+   ========================================================= */
+
 type AccessModalProps = {
   currentAccess: AccessLevel;
   initialEmail?: string;
   onClose: () => void;
-  onStartCheckout: (plan: PaidPlan, email: string) => string | null;
+  onStartCheckout: (
+    plan: PaidPlan,
+    email: string
+  ) => Promise<string | null>;
 };
 
 function AccessModal({
@@ -489,27 +556,58 @@ function AccessModal({
   const [step, setStep] = useState<1 | 2>(1);
   const [email, setEmail] = useState(initialEmail);
   const [notice, setNotice] = useState("");
+  const [checkoutBusyPlan, setCheckoutBusyPlan] = useState<PaidPlan | null>(null);
 
-  const continueToPlans = (event: FormEvent<HTMLFormElement>) => {
+  const continueToPlans = (
+    event: FormEvent<HTMLFormElement>
+  ) => {
     event.preventDefault();
-    const normalized = email.trim().toLowerCase();
-    if (!/^\S+@\S+\.\S+$/.test(normalized)) {
-      setNotice("Enter a valid email address to continue.");
+
+    const normalized = email
+      .trim()
+      .toLowerCase();
+
+    if (
+      !/^\S+@\S+\.\S+$/.test(
+        normalized
+      )
+    ) {
+      setNotice(
+        "Enter a valid email address to continue."
+      );
+
       return;
     }
+
     setEmail(normalized);
     setNotice("");
     setStep(2);
   };
 
-  const choosePlan = (plan: PaidPlan) => {
-    const message = onStartCheckout(plan, email.trim().toLowerCase());
-    if (message) setNotice(message);
+  const choosePlan = async (
+    plan: PaidPlan
+  ) => {
+    if (checkoutBusyPlan) return;
+
+    setCheckoutBusyPlan(plan);
+    setNotice("");
+
+    const message =
+      await onStartCheckout(
+        plan,
+        email.trim().toLowerCase()
+      );
+
+    if (message) {
+      setNotice(message);
+      setCheckoutBusyPlan(null);
+    }
   };
 
   const planCardStyle = {
     padding: "24px",
-    border: "1px solid var(--border)",
+    border:
+      "1px solid rgba(255,255,255,.10)",
     borderRadius: "18px",
     background: "var(--surface)",
     display: "flex",
@@ -517,215 +615,1126 @@ function AccessModal({
     minHeight: "360px",
   };
 
+  /* =======================================================
+     STEP 1 — EMAIL SIGNUP LANDING PAGE
+     ======================================================= */
+
+  if (step === 1) {
+    return (
+      <div
+        className="vip-signup-page"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Join Spikeydee VIP"
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 1200,
+          overflowY: "auto",
+        }}
+      >
+        <button
+          type="button"
+          aria-label="Close signup"
+          onClick={onClose}
+          className="vip-signup-close"
+          style={{
+            position: "fixed",
+            top: "24px",
+            right: "24px",
+            zIndex: 10,
+
+            width: "44px",
+            height: "44px",
+
+            border:
+              "1px solid rgba(255,255,255,.12)",
+
+            borderRadius: "10px",
+
+            background: "#101011",
+            color: "#fff",
+
+            fontSize: "22px",
+          }}
+        >
+          ×
+        </button>
+
+        <div className="vip-signup-inner">
+
+          {/* LOGO */}
+
+          <img
+            src={spikeydeeVipLogo}
+            alt="Spikeydee VIP"
+            className="vip-signup-logo"
+          />
+
+
+          {/* MAIN SIGNUP AREA */}
+
+          <section className="vip-signup-hero">
+
+            <h1>
+              <span>JOIN VIP</span>{" "}
+              FOR EXCLUSIVE ACCESS TO
+
+              <strong>
+                2,000+ RELEASES
+              </strong>
+            </h1>
+
+
+            <form
+              className="vip-signup-form"
+              onSubmit={continueToPlans}
+            >
+              <div className="vip-signup-step">
+                GET STARTED WITH YOUR EMAIL
+
+                <span>
+                  1 / 2
+                </span>
+              </div>
+
+
+              <input
+                type="email"
+                required
+                autoComplete="email"
+                value={email}
+                onChange={(event) =>
+                  setEmail(
+                    event.target.value
+                  )
+                }
+                placeholder="Enter your email address"
+                aria-label="Email address"
+              />
+
+
+              <button
+                type="submit"
+                className="vip-signup-continue"
+              >
+                CONTINUE
+              </button>
+
+
+              {notice && (
+                <div
+                  role="status"
+                  style={{
+                    marginTop: "16px",
+
+                    padding:
+                      "12px 14px",
+
+                    border:
+                      "1px solid rgba(231,187,69,.25)",
+
+                    borderRadius:
+                      "10px",
+
+                    background:
+                      "rgba(231,187,69,.05)",
+
+                    color:
+                      "#d8d8da",
+
+                    fontSize:
+                      "13px",
+
+                    lineHeight:
+                      1.5,
+                  }}
+                >
+                  {notice}
+                </div>
+              )}
+
+            </form>
+
+          </section>
+
+
+          {/* =================================================
+              MEMBERSHIP BENEFITS
+              ================================================= */}
+
+          <section className="vip-benefits">
+
+            <div className="vip-benefits-heading">
+
+              <span className="vip-benefits-icon">
+                ◆
+              </span>
+
+              <h2>
+                YOUR{" "}
+
+                <strong>
+                  VIP MEMBERSHIP
+                </strong>{" "}
+
+                INCLUDES
+              </h2>
+
+            </div>
+
+
+            <div className="vip-benefits-grid">
+
+              {/* 1 */}
+
+              <article className="vip-benefit-card">
+
+                <div className="vip-benefit-number">
+                  2000+
+                </div>
+
+                <h3>
+                  Premium Releases
+                </h3>
+
+                <p>
+                  Explore the complete
+                  Spikeydee VIP collection.
+                </p>
+
+              </article>
+
+
+              {/* 2 */}
+
+              <article className="vip-benefit-card">
+
+                <div className="vip-benefit-icon">
+                  ✦
+                </div>
+
+                <h3>
+                  New Releases
+                </h3>
+
+                <p>
+                  New premium releases
+                  added regularly.
+                </p>
+
+              </article>
+
+
+              {/* 3 */}
+
+              <article className="vip-benefit-card">
+
+                <div className="vip-benefit-icon">
+                  ▶
+                </div>
+
+                <h3>
+                  HD Streaming
+                </h3>
+
+                <p>
+                  High-quality playback
+                  across the VIP library.
+                </p>
+
+              </article>
+
+
+              {/* 4 */}
+
+              <article className="vip-benefit-card">
+
+                <div className="vip-benefit-icon">
+                  ★
+                </div>
+
+                <h3>
+                  VIP Exclusives
+                </h3>
+
+                <p>
+                  Members-only releases
+                  and premium collections.
+                </p>
+
+              </article>
+
+
+              {/* 5 */}
+
+              <article className="vip-benefit-card">
+
+                <div className="vip-benefit-icon">
+                  ▸
+                </div>
+
+                <h3>
+                  Watch Anywhere
+                </h3>
+
+                <p>
+                  Access from phone,
+                  tablet, laptop,
+                  or desktop.
+                </p>
+
+              </article>
+
+            </div>
+
+          </section>
+
+
+          <div
+            style={{
+              marginTop: "50px",
+
+              color:
+                "var(--text-dim)",
+
+              fontSize:
+                "11px",
+
+              lineHeight:
+                1.6,
+            }}
+          >
+            Adults 18+ only.
+            Membership terms and billing
+            details are shown before purchase.
+          </div>
+{/* =========================================================
+    SOCIAL PROOF / AWARDS / LEGAL
+    ========================================================= */}
+
+<section className="vip-proof-section">
+
+  {/* TESTIMONIALS */}
+
+  <div className="vip-testimonials">
+
+    <span className="section-kicker">
+      SPIKEYDEE VIP
+    </span>
+
+    <h2 className="vip-proof-title">
+      WHAT MEMBERS ARE SAYING
+    </h2>
+
+    <div className="vip-testimonial-grid">
+
+      <blockquote className="vip-testimonial">
+        <span className="vip-quote-mark">“</span>
+
+        <p>
+          Add a verified customer testimonial here.
+        </p>
+
+        <footer>
+          VERIFIED MEMBER
+        </footer>
+      </blockquote>
+
+
+      <blockquote className="vip-testimonial">
+        <span className="vip-quote-mark">“</span>
+
+        <p>
+          Add a second verified customer testimonial here.
+        </p>
+
+        <footer>
+          VERIFIED MEMBER
+        </footer>
+      </blockquote>
+
+
+      <blockquote className="vip-testimonial">
+        <span className="vip-quote-mark">“</span>
+
+        <p>
+          Add a third verified customer testimonial here.
+        </p>
+
+        <footer>
+          VERIFIED MEMBER
+        </footer>
+      </blockquote>
+
+    </div>
+
+  </div>
+
+
+  {/* AWARD */}
+
+  <div className="vip-award-section">
+
+    <span className="section-kicker">
+      RECOGNITION
+    </span>
+
+    <div className="vip-award">
+
+      <div className="vip-laurel vip-laurel-left">
+        ❮
+      </div>
+
+      <div className="vip-award-copy">
+
+        <span className="vip-award-small">
+          AWARD-WINNING
+        </span>
+
+        <strong className="vip-award-number">
+          3×
+        </strong>
+
+        <span className="vip-award-name">
+          AVN AWARD WINNER
+        </span>
+
+      </div>
+
+      <div className="vip-laurel vip-laurel-right">
+        ❯
+      </div>
+
+    </div>
+
+  </div>
+
+
+  {/* MEMBERSHIP DISCLOSURES */}
+
+  <section className="vip-membership-disclosures">
+
+    <span className="section-kicker">
+      MEMBERSHIP & BILLING
+    </span>
+
+    <h2>
+      MEMBERSHIP DISCLOSURES
+    </h2>
+
+    <div className="vip-disclosure-copy">
+
+      <p>
+        <strong>Lifetime Membership:</strong>{" "}
+        One-time payment of {LIFETIME_PRICE}.
+        Non-recurring. Includes full premium catalog access.
+      </p>
+
+      <p>
+        <strong>12 Month Membership:</strong>{" "}
+        One payment of {TWELVE_MONTH_TOTAL}
+        for 12 months of full premium access.
+      </p>
+
+      <p>
+        <strong>30 Day Membership:</strong>{" "}
+        {THIRTY_DAY_PRICE} every 30 days until cancelled.
+        Includes full premium catalog access while membership
+        remains active.
+      </p>
+
+      <p>
+        <strong>2 Day Promotional Access:</strong>{" "}
+        {TWO_DAY_PRICE} for the first 2 days.
+        After the promotional period, membership automatically
+        renews at {TWO_DAY_RENEWAL_PRICE} every 30 days until
+        cancelled.
+      </p>
+
+    </div>
+
+
+    <div className="vip-legal-divider" />
+
+
+    <div className="vip-legal-copy">
+
+      <p>
+        Adults 18+ only. All performers depicted in content
+        available through Spikeydee VIP are represented as adults.
+      </p>
+
+      <p>
+        Recurring memberships continue until cancelled.
+        Final pricing, billing frequency, renewal terms,
+        cancellation terms, and applicable conditions are
+        displayed before purchase.
+      </p>
+
+      <p>
+        By using Spikeydee VIP, you agree to the applicable
+        Terms, Privacy Policy, Billing, Cancellation & Refund
+        Policy, and Content Removal & Complaints Policy.
+      </p>
+
+      <p>
+        Records required pursuant to 18 U.S.C. § 2257 are
+        maintained in accordance with the site's published
+        record-keeping compliance statement.
+      </p>
+
+    </div>
+
+  </section>
+
+
+  {/* RTA */}
+
+  <div className="vip-rta-section">
+
+    <img
+      src="/rta-logo.png"
+      alt="RTA Restricted to Adults"
+      className="vip-rta-logo"
+    />
+
+    <p>
+      Restricted to adults 18+.
+    </p>
+
+  </div>
+
+</section>
+        </div>
+      </div>
+    );
+  }
+
+
+  /* =======================================================
+     STEP 2 — MEMBERSHIP OPTIONS
+     ======================================================= */
+
   return (
     <div
       role="presentation"
       onMouseDown={(event) => {
-        if (event.currentTarget === event.target) onClose();
+        if (
+          event.currentTarget ===
+          event.target
+        ) {
+          onClose();
+        }
       }}
       style={{
         position: "fixed",
         inset: 0,
+
         zIndex: 1200,
+
         overflowY: "auto",
+
         padding: "28px 18px",
-        background: "rgba(0,0,0,.9)",
-        backdropFilter: "blur(14px)",
+
+        background:
+          "rgba(0,0,0,.92)",
+
+        backdropFilter:
+          "blur(14px)",
       }}
     >
+
       <section
         role="dialog"
         aria-modal="true"
         aria-label="Choose Spikeydee VIP membership"
         style={{
-          width: "min(1260px, 100%)",
-          margin: "0 auto",
-          padding: "30px",
-          border: "1px solid var(--border)",
-          borderRadius: "22px",
-          background: "#0d0d0d",
-          boxShadow: "0 35px 100px rgba(0,0,0,.7)",
+          width:
+            "min(1260px, 100%)",
+
+          margin:
+            "0 auto",
+
+          padding:
+            "30px",
+
+          border:
+            "1px solid rgba(255,255,255,.10)",
+
+          borderRadius:
+            "22px",
+
+          background:
+            "#0c0c0d",
+
+          boxShadow:
+            "0 35px 100px rgba(0,0,0,.72)",
         }}
       >
+
+        {/* TOP BAR */}
+
         <div
           style={{
             display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
+
+            justifyContent:
+              "space-between",
+
+            alignItems:
+              "flex-start",
+
             gap: "20px",
           }}
         >
+
           <div>
-            <span className="section-kicker">SPIKEYDEE VIP</span>
-            <h2 style={{ margin: "8px 0 10px", fontSize: "32px" }}>
-              {step === 1 ? "STEP 1 OF 2 — ENTER YOUR EMAIL" : "STEP 2 OF 2 — CHOOSE YOUR VIP ACCESS"}
+
+            <span className="section-kicker">
+              SPIKEYDEE VIP
+            </span>
+
+            <h2
+              style={{
+                margin:
+                  "8px 0 10px",
+
+                fontSize:
+                  "32px",
+
+                color:
+                  "#ffffff",
+
+                letterSpacing:
+                  "-0.03em",
+              }}
+            >
+              CHOOSE YOUR VIP ACCESS
             </h2>
-            <p style={{ color: "var(--text-muted)", lineHeight: 1.6 }}>
-              {step === 1
-                ? "Enter the email you want associated with your Spikeydee VIP access."
-                : `Membership options for ${email}.`}
+
+
+            <p
+              style={{
+                margin: 0,
+
+                color:
+                  "var(--text-muted)",
+
+                lineHeight:
+                  1.6,
+              }}
+            >
+              Membership options for{" "}
+
+              <strong
+                style={{
+                  color:
+                    "#fff",
+                }}
+              >
+                {email}
+              </strong>
             </p>
+
           </div>
+
 
           <button
             type="button"
             aria-label="Close"
             onClick={onClose}
             style={{
-              width: "42px",
-              height: "42px",
-              border: "1px solid var(--border)",
-              borderRadius: "10px",
-              background: "#151515",
-              color: "#fff",
+              width:
+                "42px",
+
+              height:
+                "42px",
+
+              flexShrink:
+                0,
+
+              border:
+                "1px solid var(--border)",
+
+              borderRadius:
+                "10px",
+
+              background:
+                "#151515",
+
+              color:
+                "#fff",
+
+              fontSize:
+                "20px",
             }}
           >
             ×
           </button>
+
         </div>
 
-        {step === 1 ? (
-          <form onSubmit={continueToPlans} style={{ maxWidth: "720px", margin: "34px auto 10px" }}>
-            <label style={{ display: "block", fontWeight: 800, marginBottom: "10px" }}>
-              Email
-            </label>
-            <input
-              type="email"
-              required
-              autoComplete="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="Enter your email"
+
+        {/* =================================================
+            MEMBERSHIP GRID
+            ================================================= */}
+
+        <div
+          className="vip-access-grid"
+          style={{
+            marginTop:
+              "28px",
+          }}
+        >
+
+          {/* LIFETIME */}
+
+          <article
+            className="vip-access-card"
+            style={{
+              ...planCardStyle,
+
+              border:
+                "1px solid rgba(231,187,69,.62)",
+
+              background:
+                "linear-gradient(180deg, rgba(231,187,69,.055), rgba(255,255,255,.008)), var(--surface)",
+
+              boxShadow:
+                "0 16px 38px rgba(0,0,0,.28)",
+            }}
+          >
+
+            <span
               style={{
-                width: "100%",
-                minHeight: "58px",
-                padding: "0 18px",
-                borderRadius: "12px",
-                border: "1px solid var(--border)",
-                background: "#080808",
-                color: "#fff",
-                fontSize: "18px",
-              }}
-            />
+                alignSelf:
+                  "flex-start",
 
-            <button
-              type="submit"
-              className="primary-button"
-              style={{ width: "100%", marginTop: "24px", minHeight: "54px" }}
+                padding:
+                  "6px 9px",
+
+                border:
+                  "1px solid rgba(231,187,69,.5)",
+
+                borderRadius:
+                  "7px",
+
+                color:
+                  "var(--gold-2)",
+
+                fontSize:
+                  "9px",
+
+                fontWeight:
+                  900,
+
+                letterSpacing:
+                  ".12em",
+              }}
             >
-              CONTINUE TO MEMBERSHIPS
-            </button>
-          </form>
-        ) : (
-          <>
-            <div
+              BEST VALUE
+            </span>
+
+
+            <h3
               style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-                gap: "16px",
-                marginTop: "28px",
+                margin:
+                  "18px 0 8px",
+
+                fontSize:
+                  "24px",
               }}
             >
-              <article style={{ ...planCardStyle, border: "2px solid rgba(255,255,255,.72)" }}>
-                <span className="section-kicker">BEST VALUE</span>
-                <h3 style={{ margin: "12px 0 8px", fontSize: "24px" }}>Lifetime Membership</h3>
-                <div style={{ fontSize: "38px", fontWeight: 850 }}>{LIFETIME_PRICE}</div>
-                <div style={{ color: "var(--text-muted)", marginTop: "2px" }}>/ lifetime</div>
-                <p style={{ color: "var(--text-muted)", lineHeight: 1.6, marginTop: "18px", flex: 1 }}>
-                  One-time payment of $225.00. Non-recurring. Full premium catalog access.
-                </p>
-                <button type="button" className="primary-button" onClick={() => choosePlan("lifetime")}>
-                  START MEMBERSHIP
-                </button>
-              </article>
+              Lifetime Membership
+            </h3>
 
-              <article style={planCardStyle}>
-                <span className="section-kicker">12 MONTH MEMBERSHIP</span>
-                <h3 style={{ margin: "12px 0 8px", fontSize: "24px" }}>12 Month Membership</h3>
-                <div style={{ fontSize: "38px", fontWeight: 850 }}>{TWELVE_MONTH_MONTHLY_EQUIVALENT}</div>
-                <div style={{ color: "var(--text-muted)", marginTop: "2px" }}>/ month</div>
-                <p style={{ color: "var(--text-muted)", lineHeight: 1.6, marginTop: "18px", flex: 1 }}>
-                  Billed as one payment of {TWELVE_MONTH_TOTAL} for 12 months of full premium access.
-                </p>
-                <button type="button" className="primary-button" onClick={() => choosePlan("twelve_month")}>
-                  START MEMBERSHIP
-                </button>
-              </article>
-
-              <article style={planCardStyle}>
-                <span className="section-kicker">30 DAY MEMBERSHIP</span>
-                <h3 style={{ margin: "12px 0 8px", fontSize: "24px" }}>30 Day Membership</h3>
-                <div style={{ fontSize: "38px", fontWeight: 850 }}>{THIRTY_DAY_PRICE}</div>
-                <div style={{ color: "var(--text-muted)", marginTop: "2px" }}>/ 30 days</div>
-                <p style={{ color: "var(--text-muted)", lineHeight: 1.6, marginTop: "18px", flex: 1 }}>
-                  Billed $29.99 every 30 days until cancelled. Full premium catalog access while active.
-                </p>
-                <button type="button" className="primary-button" onClick={() => choosePlan("thirty_day")}>
-                  START MEMBERSHIP
-                </button>
-              </article>
-
-              <article style={planCardStyle}>
-                <span className="section-kicker">2 DAY PASS</span>
-                <h3 style={{ margin: "12px 0 8px", fontSize: "24px" }}>2 Day Pass</h3>
-                <div style={{ fontSize: "38px", fontWeight: 850 }}>{TWO_DAY_PRICE}</div>
-                <div style={{ color: "var(--text-muted)", marginTop: "2px" }}>/ first 2 days</div>
-                <p style={{ color: "var(--text-muted)", lineHeight: 1.6, marginTop: "18px", flex: 1 }}>
-                  Initial 2-day promotional access. After 2 days, membership automatically renews at {TWO_DAY_RENEWAL_PRICE} every 30 days until cancelled.
-                </p>
-                <button type="button" className="primary-button" onClick={() => choosePlan("two_day_pass")}>
-                  START MEMBERSHIP
-                </button>
-              </article>
-            </div>
 
             <div
               style={{
-                marginTop: "22px",
-                padding: "16px 18px",
-                border: "1px solid var(--border)",
-                borderRadius: "14px",
-                background: "#111",
-                color: "var(--text-muted)",
-                lineHeight: 1.6,
+                fontSize:
+                  "38px",
+
+                fontWeight:
+                  850,
               }}
             >
-              <strong style={{ color: "#fff" }}>Billing disclosure:</strong>{" "}
-              The 2 Day Pass is $0.99 for the first 2 days. After the promotional period it automatically renews at $32.99 every 30 days until cancelled. Recurring plans continue until cancelled according to the terms shown at checkout.
+              {LIFETIME_PRICE}
             </div>
+
+
+            <div
+              style={{
+                color:
+                  "var(--text-muted)",
+
+                marginTop:
+                  "2px",
+              }}
+            >
+              / lifetime
+            </div>
+
+
+            <p className="membership-card-disclosure">
+              One-time payment of
+              $225.00. Non-recurring.
+              Full premium catalog access.
+            </p>
+
 
             <button
               type="button"
-              className="secondary-button"
-              onClick={() => { setNotice(""); setStep(1); }}
-              style={{ marginTop: "18px" }}
+              className="vip-signup-continue"
+              onClick={() =>
+                choosePlan(
+                  "lifetime"
+                )
+              }
+              style={{
+                width:
+                  "100%",
+
+                marginTop:
+                  "auto",
+              }}
             >
-              ← Change Email
+              {checkoutBusyPlan === "lifetime" ? "OPENING CCBILL…" : "START MEMBERSHIP"}
             </button>
-          </>
-        )}
+
+          </article>
+
+
+          {/* 12 MONTH */}
+
+          <article
+            className="vip-access-card"
+            style={planCardStyle}
+          >
+
+            <h3
+              style={{
+                margin:
+                  "12px 0 8px",
+
+                fontSize:
+                  "24px",
+              }}
+            >
+              12 Month Membership
+            </h3>
+
+
+            <div
+              style={{
+                fontSize:
+                  "38px",
+
+                fontWeight:
+                  850,
+              }}
+            >
+              {TWELVE_MONTH_MONTHLY_EQUIVALENT}
+            </div>
+
+
+            <div
+              style={{
+                color:
+                  "var(--text-muted)",
+
+                marginTop:
+                  "2px",
+              }}
+            >
+              / month
+            </div>
+
+
+            <p className="membership-card-disclosure">
+              Billed as one payment
+              of {TWELVE_MONTH_TOTAL} for
+              12 months of full premium
+              access.
+            </p>
+
+
+            <button
+              type="button"
+              className="primary-button"
+              onClick={() =>
+                choosePlan(
+                  "twelve_month"
+                )
+              }
+            >
+              {checkoutBusyPlan === "twelve_month" ? "OPENING CCBILL…" : "START MEMBERSHIP"}
+            </button>
+
+          </article>
+
+
+          {/* 30 DAY */}
+
+          <article
+            className="vip-access-card"
+            style={planCardStyle}
+          >
+
+            <h3
+              style={{
+                margin:
+                  "12px 0 8px",
+
+                fontSize:
+                  "24px",
+              }}
+            >
+              30 Day Membership
+            </h3>
+
+
+            <div
+              style={{
+                fontSize:
+                  "38px",
+
+                fontWeight:
+                  850,
+              }}
+            >
+              {THIRTY_DAY_PRICE}
+            </div>
+
+
+            <div
+              style={{
+                color:
+                  "var(--text-muted)",
+
+                marginTop:
+                  "2px",
+              }}
+            >
+              / 30 days
+            </div>
+
+
+            <p className="membership-card-disclosure">
+              Billed $29.99 every
+              30 days until cancelled.
+              Full premium catalog
+              access while active.
+            </p>
+
+
+            <button
+              type="button"
+              className="primary-button"
+              onClick={() =>
+                choosePlan(
+                  "thirty_day"
+                )
+              }
+            >
+              {checkoutBusyPlan === "thirty_day" ? "OPENING CCBILL…" : "START MEMBERSHIP"}
+            </button>
+
+          </article>
+
+
+          {/* 2 DAY */}
+
+          <article
+            className="vip-access-card"
+            style={planCardStyle}
+          >
+
+            <h3
+              style={{
+                margin:
+                  "12px 0 8px",
+
+                fontSize:
+                  "24px",
+              }}
+            >
+              2 Day Pass
+            </h3>
+
+
+            <div
+              style={{
+                fontSize:
+                  "38px",
+
+                fontWeight:
+                  850,
+              }}
+            >
+              {TWO_DAY_PRICE}
+            </div>
+
+
+            <div
+              style={{
+                color:
+                  "var(--text-muted)",
+
+                marginTop:
+                  "2px",
+              }}
+            >
+              / first 2 days
+            </div>
+
+
+            <p className="membership-card-disclosure">
+              Initial 2-day promotional
+              access. After 2 days,
+              membership automatically
+              renews at{" "}
+              {TWO_DAY_RENEWAL_PRICE}{" "}
+              every 30 days until
+              cancelled.
+            </p>
+
+
+            <button
+              type="button"
+              className="primary-button"
+              onClick={() =>
+                choosePlan(
+                  "two_day_pass"
+                )
+              }
+            >
+              {checkoutBusyPlan === "two_day_pass" ? "OPENING CCBILL…" : "START MEMBERSHIP"}
+            </button>
+
+          </article>
+
+        </div>
+
+
+        {/* BILLING DISCLOSURE */}
+
+        <div
+          className="billing-disclosure"
+          style={{
+            marginTop:
+              "22px",
+
+            padding:
+              "16px 18px",
+
+            border:
+              "1px solid var(--border)",
+
+            borderRadius:
+              "14px",
+
+            background:
+              "#111",
+
+            color:
+              "var(--text-muted)",
+
+            lineHeight:
+              1.6,
+          }}
+        >
+
+          <strong
+            style={{
+              color:
+                "#fff",
+            }}
+          >
+            Billing disclosure:
+          </strong>{" "}
+
+          The 2 Day Pass is $0.99
+          for the first 2 days.
+          After the promotional period
+          it automatically renews at{" "}
+          {TWO_DAY_RENEWAL_PRICE} every
+          30 days until cancelled.
+          Recurring plans continue until
+          cancelled according to the
+          terms shown at checkout.
+
+        </div>
+
+
+        {/* CHANGE EMAIL */}
+
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={() => {
+            setNotice("");
+            setStep(1);
+          }}
+          style={{
+            marginTop:
+              "18px",
+          }}
+        >
+          ← Change Email
+        </button>
+
+
+        {/* ERROR / NOTICE */}
 
         {notice && (
           <div
             role="status"
             style={{
-              marginTop: "20px",
-              padding: "14px 16px",
-              border: "1px solid rgba(255,255,255,.16)",
-              borderRadius: "12px",
-              background: "#111",
-              lineHeight: 1.6,
+              marginTop:
+                "20px",
+
+              padding:
+                "14px 16px",
+
+              border:
+                "1px solid rgba(255,255,255,.16)",
+
+              borderRadius:
+                "12px",
+
+              background:
+                "#111",
+
+              lineHeight:
+                1.6,
             }}
           >
             {notice}
           </div>
         )}
 
+
+        {/* CURRENT MEMBERSHIP */}
+
         {currentAccess !== "none" && (
-          <p style={{ marginTop: "18px", color: "var(--text-muted)" }}>
-            Current access: {PLAN_LABELS[currentAccess as PaidPlan] ?? "VIP access"}
+          <p
+            style={{
+              marginTop:
+                "18px",
+
+              color:
+                "var(--text-muted)",
+            }}
+          >
+            Current access:{" "}
+
+            {PLAN_LABELS[
+              currentAccess as PaidPlan
+            ] ?? "VIP access"}
           </p>
         )}
+
       </section>
     </div>
   );
@@ -1710,6 +2719,379 @@ function FavoritesPage({
 }
 
 /* =========================================================
+   PAID CHECKOUT RETURN + ACCOUNT CREATION
+   ========================================================= */
+
+type CheckoutReturnModalProps = {
+  checkoutId: string | null;
+  onActivated: (membership: MembershipState) => void;
+  onClose: () => void;
+};
+
+function CheckoutReturnModal({
+  checkoutId,
+  onActivated,
+  onClose,
+}: CheckoutReturnModalProps) {
+  const [status, setStatus] = useState<CheckoutStatus>("pending");
+  const [statusMessage, setStatusMessage] = useState(
+    "Confirming your CCBill payment…"
+  );
+  const [verifiedEmail, setVerifiedEmail] = useState("");
+  const [plan, setPlan] = useState<PaidPlan | null>(null);
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    if (!checkoutId) {
+      setStatus("failed");
+      setStatusMessage(
+        "We could not find this checkout in the browser. Please contact support with your CCBill receipt."
+      );
+      return;
+    }
+
+    let cancelled = false;
+    let attempts = 0;
+    let timer: number | null = null;
+
+    const checkStatus = async () => {
+      attempts += 1;
+
+      const { data, error } = await supabase.functions.invoke(
+        "membership-status",
+        {
+          body: { checkoutId },
+        }
+      );
+
+      if (cancelled) return;
+
+      if (error) {
+        if (attempts < 20) {
+          timer = window.setTimeout(checkStatus, 2500);
+          return;
+        }
+
+        setStatus("failed");
+        setStatusMessage(
+          "We could not confirm the payment yet. Your payment may still be processing."
+        );
+        return;
+      }
+
+      const result = data as CheckoutStatusResponse | null;
+
+      if (!result?.ok) {
+        setStatus("failed");
+        setStatusMessage(
+          result?.message ?? "We could not verify this checkout."
+        );
+        return;
+      }
+
+      setStatus(result.status);
+
+      if (result.email) {
+        setVerifiedEmail(result.email);
+      }
+
+      if (result.plan) {
+        setPlan(result.plan);
+      }
+
+      if (result.status === "paid") {
+        setStatusMessage(
+          "Payment confirmed. Create your Spikeydee VIP password to activate your account."
+        );
+        return;
+      }
+
+      if (["failed", "cancelled", "expired"].includes(result.status)) {
+        setStatusMessage(
+          result.message ?? "This checkout is not active."
+        );
+        return;
+      }
+
+      if (attempts < 20) {
+        setStatusMessage(
+          "Payment received by CCBill. Waiting for the secure confirmation…"
+        );
+        timer = window.setTimeout(checkStatus, 2500);
+      } else {
+        setStatusMessage(
+          "CCBill has not finished confirming the payment yet. Wait a moment and refresh this page."
+        );
+      }
+    };
+
+    void checkStatus();
+
+    return () => {
+      cancelled = true;
+      if (timer !== null) {
+        window.clearTimeout(timer);
+      }
+    };
+  }, [checkoutId]);
+
+  const createAccount = async (
+    event: FormEvent<HTMLFormElement>
+  ) => {
+    event.preventDefault();
+    setErrorMessage("");
+
+    if (!checkoutId) {
+      setErrorMessage("Missing checkout ID.");
+      return;
+    }
+
+    if (password.length < 8) {
+      setErrorMessage(
+        "Use a password with at least 8 characters."
+      );
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setErrorMessage("The passwords do not match.");
+      return;
+    }
+
+    setCreating(true);
+
+    const { data, error } = await supabase.functions.invoke(
+      "membership-create-account",
+      {
+        body: {
+          checkoutId,
+          password,
+        },
+      }
+    );
+
+    if (error) {
+      setErrorMessage(error.message);
+      setCreating(false);
+      return;
+    }
+
+    const result = data as CheckoutActivationResponse | null;
+
+    if (!result?.ok || !result.email) {
+      setErrorMessage(
+        "Your payment is confirmed, but the member account could not be activated."
+      );
+      setCreating(false);
+      return;
+    }
+
+    const { error: signInError } =
+      await supabase.auth.signInWithPassword({
+        email: result.email,
+        password,
+      });
+
+    if (signInError) {
+      setErrorMessage(
+        `Your account was created, but automatic sign-in failed: ${signInError.message}`
+      );
+      setCreating(false);
+      return;
+    }
+
+    sessionStorage.removeItem(
+      PENDING_CHECKOUT_STORAGE_KEY
+    );
+
+    onActivated({
+      level: result.plan,
+      expiresAt: result.expiresAt,
+      accessSessionId: result.accessSessionId,
+      customerEmail: result.email,
+    });
+
+    setCreating(false);
+    onClose();
+  };
+
+  return (
+    <div
+      role="presentation"
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 1350,
+        display: "grid",
+        placeItems: "center",
+        padding: "20px",
+        overflowY: "auto",
+        background: "rgba(0,0,0,.94)",
+      }}
+    >
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-label="Complete VIP membership"
+        style={{
+          width: "min(560px, 100%)",
+          padding: "30px",
+          border: "1px solid rgba(255,255,255,.12)",
+          borderRadius: "18px",
+          background: "#0d0d0e",
+          color: "#fff",
+          boxShadow: "0 30px 90px rgba(0,0,0,.55)",
+        }}
+      >
+        <span className="section-kicker">
+          SECURE MEMBERSHIP ACTIVATION
+        </span>
+
+        <h2
+          style={{
+            margin: "10px 0 8px",
+            fontSize: "30px",
+          }}
+        >
+          {status === "paid"
+            ? "Create Your VIP Password"
+            : "Confirming Your Membership"}
+        </h2>
+
+        <p
+          style={{
+            margin: "0 0 20px",
+            color: "var(--text-muted)",
+            lineHeight: 1.6,
+          }}
+        >
+          {statusMessage}
+        </p>
+
+        {status === "paid" && (
+          <>
+            <div
+              style={{
+                marginBottom: "20px",
+                padding: "14px 16px",
+                border: "1px solid rgba(231,187,69,.22)",
+                borderRadius: "12px",
+                background: "rgba(231,187,69,.05)",
+              }}
+            >
+              <strong
+                style={{
+                  display: "block",
+                  color: "var(--gold-2)",
+                }}
+              >
+                {plan ? PLAN_LABELS[plan] : "VIP Membership"}
+              </strong>
+
+              <span
+                style={{
+                  display: "block",
+                  marginTop: "4px",
+                  color: "var(--text-muted)",
+                  fontSize: "13px",
+                }}
+              >
+                {verifiedEmail}
+              </span>
+            </div>
+
+            <form onSubmit={createAccount}>
+              <input
+                required
+                type="password"
+                autoComplete="new-password"
+                value={password}
+                onChange={(event) =>
+                  setPassword(event.target.value)
+                }
+                placeholder="Create password"
+                style={{
+                  width: "100%",
+                  height: "50px",
+                  padding: "0 14px",
+                  marginBottom: "12px",
+                  border: "1px solid var(--border)",
+                  borderRadius: "10px",
+                  background: "#131314",
+                  color: "#fff",
+                }}
+              />
+
+              <input
+                required
+                type="password"
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(event) =>
+                  setConfirmPassword(event.target.value)
+                }
+                placeholder="Confirm password"
+                style={{
+                  width: "100%",
+                  height: "50px",
+                  padding: "0 14px",
+                  border: "1px solid var(--border)",
+                  borderRadius: "10px",
+                  background: "#131314",
+                  color: "#fff",
+                }}
+              />
+
+              {errorMessage && (
+                <p
+                  role="alert"
+                  style={{
+                    color: "#ff7777",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {errorMessage}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                className="vip-signup-continue"
+                disabled={creating}
+                style={{
+                  width: "100%",
+                  marginTop: "16px",
+                }}
+              >
+                {creating
+                  ? "ACTIVATING ACCOUNT…"
+                  : "CREATE VIP ACCOUNT"}
+              </button>
+            </form>
+          </>
+        )}
+
+        {status !== "paid" && (
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={onClose}
+            style={{
+              marginTop: "6px",
+            }}
+          >
+            Return to Site
+          </button>
+        )}
+      </section>
+    </div>
+  );
+}
+
+/* =========================================================
    STUDIO LOGIN
    ========================================================= */
 
@@ -1721,117 +3103,102 @@ type AuthModalProps = {
 function AuthModal({
   onClose,
 }: AuthModalProps) {
-  const [
-    email,
-    setEmail,
-  ] =
-    useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
-  const [
-    password,
-    setPassword,
-  ] =
-    useState("");
+  const handleSubmit = async (
+    event: FormEvent<HTMLFormElement>
+  ) => {
+    event.preventDefault();
 
-  const [
-    loading,
-    setLoading,
-  ] =
-    useState(false);
+    setLoading(true);
+    setErrorMessage("");
+    setSuccessMessage("");
 
-  const [
-    errorMessage,
-    setErrorMessage,
-  ] =
-    useState("");
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
 
-  const handleSubmit =
-    async (
-      event:
-        FormEvent<HTMLFormElement>
-    ) => {
-      event.preventDefault();
+    if (error) {
+      setErrorMessage(error.message);
+      setLoading(false);
+      return;
+    }
 
-      setLoading(
-        true
-      );
+    setLoading(false);
+    onClose();
+  };
 
+  const handlePasswordReset = async () => {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    if (!normalizedEmail) {
       setErrorMessage(
-        ""
+        "Enter your Studio admin email above, then select Reset password."
       );
+      return;
+    }
 
-      const {
-        error,
-      } =
-        await supabase.auth
-          .signInWithPassword({
-            email:
-              email.trim(),
+    if (!/^\S+@\S+\.\S+$/.test(normalizedEmail)) {
+      setErrorMessage("Enter a valid email address.");
+      return;
+    }
 
-            password,
-          });
+    setResetLoading(true);
 
-      if (error) {
-        setErrorMessage(
-          error.message
-        );
+    const redirectTo =
+      `${window.location.origin}/studio-reset-password`;
 
-        setLoading(
-          false
-        );
-
-        return;
+    const { error } = await supabase.auth.resetPasswordForEmail(
+      normalizedEmail,
+      {
+        redirectTo,
       }
+    );
 
-      setLoading(
-        false
-      );
+    if (error) {
+      setErrorMessage(error.message);
+      setResetLoading(false);
+      return;
+    }
 
-      onClose();
-    };
+    setSuccessMessage(
+      "Password reset email sent. Check your inbox and open the reset link."
+    );
+    setResetLoading(false);
+  };
 
   return (
     <div
       role="presentation"
       style={{
-        position:
-          "fixed",
-
-        inset:
-          0,
-
-        zIndex:
-          1300,
-
-        display:
-          "grid",
-
-        placeItems:
-          "center",
-
-        padding:
-          "20px",
-
-        background:
-          "rgba(0,0,0,.86)",
+        position: "fixed",
+        inset: 0,
+        zIndex: 1300,
+        display: "grid",
+        placeItems: "center",
+        padding: "20px",
+        background: "rgba(0,0,0,.86)",
       }}
     >
       <section
+        role="dialog"
+        aria-modal="true"
+        aria-label="Studio Login"
         style={{
-          width:
-            "min(430px,100%)",
-
-          padding:
-            "28px",
-
-          background:
-            "#0d0d0d",
-
-          border:
-            "1px solid var(--border)",
-
-          borderRadius:
-            "18px",
+          width: "min(430px,100%)",
+          padding: "28px",
+          background: "#0d0d0d",
+          border: "1px solid var(--border)",
+          borderRadius: "18px",
         }}
       >
         <span className="section-kicker">
@@ -1842,91 +3209,71 @@ function AuthModal({
           Studio Login
         </h2>
 
-        <form
-          onSubmit={
-            handleSubmit
-          }
-        >
+        <form onSubmit={handleSubmit}>
           <input
             required
             type="email"
-            value={
-              email
-            }
-            onChange={(
-              event
-            ) =>
-              setEmail(
-                event.target.value
-              )
+            autoComplete="email"
+            value={email}
+            onChange={(event) =>
+              setEmail(event.target.value)
             }
             placeholder="Email"
             style={{
-              width:
-                "100%",
-
-              height:
-                "46px",
-
-              marginBottom:
-                "12px",
-
-              padding:
-                "0 14px",
+              width: "100%",
+              height: "46px",
+              marginBottom: "12px",
+              padding: "0 14px",
             }}
           />
 
           <input
             required
             type="password"
-            value={
-              password
-            }
-            onChange={(
-              event
-            ) =>
-              setPassword(
-                event.target.value
-              )
+            autoComplete="current-password"
+            value={password}
+            onChange={(event) =>
+              setPassword(event.target.value)
             }
             placeholder="Password"
             style={{
-              width:
-                "100%",
-
-              height:
-                "46px",
-
-              padding:
-                "0 14px",
+              width: "100%",
+              height: "46px",
+              padding: "0 14px",
             }}
           />
 
           {errorMessage && (
             <p
+              role="alert"
               style={{
-                color:
-                  "#ff7777",
+                color: "#ff7777",
+                lineHeight: 1.5,
               }}
             >
-              {
-                errorMessage
-              }
+              {errorMessage}
+            </p>
+          )}
+
+          {successMessage && (
+            <p
+              role="status"
+              style={{
+                color: "#ffffff",
+                lineHeight: 1.5,
+              }}
+            >
+              {successMessage}
             </p>
           )}
 
           <button
             type="submit"
             className="primary-button"
-            disabled={
-              loading
-            }
+            disabled={loading || resetLoading}
             style={{
-              width:
-                "100%",
-
-              marginTop:
-                "18px",
+              width: "100%",
+              marginTop: "18px",
             }}
           >
             {loading
@@ -1937,17 +3284,240 @@ function AuthModal({
 
         <button
           type="button"
-          className="secondary-button"
-          onClick={
-            onClose
-          }
+          onClick={() => void handlePasswordReset()}
+          disabled={loading || resetLoading}
           style={{
-            marginTop:
-              "12px",
+            display: "block",
+            margin: "14px auto 0",
+            padding: 0,
+            border: 0,
+            background: "transparent",
+            color: "var(--gold-2)",
+            font: "inherit",
+            fontSize: "13px",
+            fontWeight: 750,
+            textDecoration: "underline",
+            textUnderlineOffset: "3px",
+            cursor: resetLoading ? "default" : "pointer",
+          }}
+        >
+          {resetLoading
+            ? "Sending reset email..."
+            : "Reset password"}
+        </button>
+
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={onClose}
+          style={{
+            marginTop: "16px",
           }}
         >
           Close
         </button>
+      </section>
+    </div>
+  );
+}
+
+/* =========================================================
+   STUDIO PASSWORD RESET
+   ========================================================= */
+
+type ResetPasswordModalProps = {
+  onComplete: () => void;
+};
+
+function ResetPasswordModal({
+  onComplete,
+}: ResetPasswordModalProps) {
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] =
+    useState("");
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] =
+    useState("");
+  const [successMessage, setSuccessMessage] =
+    useState("");
+
+  const handleReset = async (
+    event: FormEvent<HTMLFormElement>
+  ) => {
+    event.preventDefault();
+
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    if (password.length < 8) {
+      setErrorMessage(
+        "Use a password with at least 8 characters."
+      );
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setErrorMessage(
+        "The two passwords do not match."
+      );
+      return;
+    }
+
+    setLoading(true);
+
+    const { data: sessionData } =
+      await supabase.auth.getSession();
+
+    if (!sessionData.session) {
+      setErrorMessage(
+        "This password-reset link is invalid or has expired. Request a new reset email from Studio Login."
+      );
+      setLoading(false);
+      return;
+    }
+
+    const { error } =
+      await supabase.auth.updateUser({
+        password,
+      });
+
+    if (error) {
+      setErrorMessage(error.message);
+      setLoading(false);
+      return;
+    }
+
+    await supabase.auth.signOut();
+
+    setPassword("");
+    setConfirmPassword("");
+    setSuccessMessage(
+      "Password updated successfully. You can now return to Studio Login and sign in with your new password."
+    );
+    setLoading(false);
+  };
+
+  return (
+    <div
+      role="presentation"
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 1400,
+        display: "grid",
+        placeItems: "center",
+        padding: "20px",
+        background: "rgba(0,0,0,.92)",
+      }}
+    >
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-label="Set new Studio password"
+        style={{
+          width: "min(430px,100%)",
+          padding: "28px",
+          background: "#0d0d0d",
+          border: "1px solid var(--border)",
+          borderRadius: "18px",
+        }}
+      >
+        <span className="section-kicker">
+          PRIVATE ADMIN
+        </span>
+
+        <h2>
+          Set New Password
+        </h2>
+
+        {!successMessage ? (
+          <form onSubmit={handleReset}>
+            <input
+              required
+              type="password"
+              autoComplete="new-password"
+              value={password}
+              onChange={(event) =>
+                setPassword(event.target.value)
+              }
+              placeholder="New password"
+              style={{
+                width: "100%",
+                height: "46px",
+                marginBottom: "12px",
+                padding: "0 14px",
+              }}
+            />
+
+            <input
+              required
+              type="password"
+              autoComplete="new-password"
+              value={confirmPassword}
+              onChange={(event) =>
+                setConfirmPassword(
+                  event.target.value
+                )
+              }
+              placeholder="Confirm new password"
+              style={{
+                width: "100%",
+                height: "46px",
+                padding: "0 14px",
+              }}
+            />
+
+            {errorMessage && (
+              <p
+                role="alert"
+                style={{
+                  color: "#ff7777",
+                  lineHeight: 1.5,
+                }}
+              >
+                {errorMessage}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              className="primary-button"
+              disabled={loading}
+              style={{
+                width: "100%",
+                marginTop: "18px",
+              }}
+            >
+              {loading
+                ? "Updating..."
+                : "Set New Password"}
+            </button>
+          </form>
+        ) : (
+          <>
+            <p
+              role="status"
+              style={{
+                color: "#ffffff",
+                lineHeight: 1.6,
+              }}
+            >
+              {successMessage}
+            </p>
+
+            <button
+              type="button"
+              className="primary-button"
+              onClick={onComplete}
+              style={{
+                width: "100%",
+                marginTop: "10px",
+              }}
+            >
+              Return to Studio Login
+            </button>
+          </>
+        )}
       </section>
     </div>
   );
@@ -2233,6 +3803,41 @@ const [heroSettings, setHeroSettings] = useState<HomepageHeroSettings>({
 const [heroSaving, setHeroSaving] = useState(false);
 const [heroMessage, setHeroMessage] = useState("");
 const [heroError, setHeroError] = useState("");
+const [homepageBanners, setHomepageBanners] = useState<HomepageBanner[]>([]);
+const [bannerFile, setBannerFile] = useState<File | null>(null);
+const [bannerEyebrow, setBannerEyebrow] = useState("SPIKEYDEE VIP");
+const [bannerTitle, setBannerTitle] = useState("");
+const [bannerSubtitle, setBannerSubtitle] = useState("");
+const [bannerSaving, setBannerSaving] = useState(false);
+const [bannerMessage, setBannerMessage] = useState("");
+const [bannerError, setBannerError] = useState("");
+
+const activeHomepageBannerCount = homepageBanners.filter(
+  (banner) => banner.is_published
+).length;
+
+const [homepageTiles, setHomepageTiles] = useState<HomepageTile[]>([]);
+const [tileFile, setTileFile] = useState<File | null>(null);
+const [tileTitle, setTileTitle] = useState("");
+const [tileSubtitle, setTileSubtitle] = useState("");
+const [tileSaving, setTileSaving] = useState(false);
+const [tileMessage, setTileMessage] = useState("");
+const [tileError, setTileError] = useState("");
+
+const activeHomepageTileCount = homepageTiles.filter(
+  (tile) => tile.is_published
+).length;
+
+const [homepageBrands, setHomepageBrands] = useState<HomepageBrand[]>([]);
+const [brandFile, setBrandFile] = useState<File | null>(null);
+const [brandName, setBrandName] = useState("");
+const [brandSaving, setBrandSaving] = useState(false);
+const [brandMessage, setBrandMessage] = useState("");
+const [brandError, setBrandError] = useState("");
+
+const activeHomepageBrandCount = homepageBrands.filter(
+  (brand) => brand.is_published
+).length;
   type BunnyUploadCredentials = {
     success?: boolean;
     videoId: string;
@@ -2304,8 +3909,722 @@ const loadHeroSettings = async () => {
 useEffect(() => {
   if (profile.is_admin) {
     void loadHeroSettings();
+    void loadHomepageBanners();
+    void loadHomepageBrands();
+    void loadHomepageTiles();
   }
 }, [profile.is_admin]);
+
+const loadHomepageBanners = async () => {
+  const { data, error } = await supabase
+    .from("homepage_banners")
+    .select("*")
+    .order("sort_order", { ascending: true });
+
+  if (error) {
+    console.error("Could not load homepage banners:", error);
+    setBannerError(error.message);
+    return;
+  }
+
+  setHomepageBanners((data ?? []) as HomepageBanner[]);
+};
+
+const loadHomepageBrands = async () => {
+  const { data, error } = await supabase
+    .from("homepage_brands")
+    .select("*")
+    .order("sort_order", { ascending: true });
+
+  if (error) {
+    console.error("Could not load homepage brands:", error);
+    setBrandError(error.message);
+    return;
+  }
+
+  setHomepageBrands((data ?? []) as HomepageBrand[]);
+};
+
+const loadHomepageTiles = async () => {
+  const { data, error } = await supabase
+    .from("homepage_tiles")
+    .select("*")
+    .order("sort_order", { ascending: true });
+
+  if (error) {
+    console.error("Could not load homepage tiles:", error);
+    setTileError(error.message);
+    return;
+  }
+
+  setHomepageTiles((data ?? []) as HomepageTile[]);
+};
+
+const uploadHomepageBanner = async () => {
+  if (!bannerFile) {
+    setBannerError("Choose a banner image first.");
+    return;
+  }
+
+  setBannerSaving(true);
+  setBannerError("");
+  setBannerMessage("");
+
+  let uploadedFilePath: string | null = null;
+
+  try {
+    // Count only banners that are actually published in the public slideshow.
+    // Old/unpublished banner rows no longer consume one of the six active slots.
+    const { data: activeRows, error: activeRowsError } = await supabase
+      .from("homepage_banners")
+      .select("id, sort_order, is_published")
+      .eq("is_published", true)
+      .order("sort_order", { ascending: true });
+
+    if (activeRowsError) {
+      throw new Error(
+        `Could not check active banners: ${
+          activeRowsError.message ?? String(activeRowsError)
+        }`
+      );
+    }
+
+    const activeBanners = activeRows ?? [];
+
+    if (activeBanners.length >= MAX_HOMEPAGE_BANNERS) {
+      setBannerError(
+        `The slideshow already has ${MAX_HOMEPAGE_BANNERS} active banners. Unpublish or delete one before adding another.`
+      );
+      return;
+    }
+
+    // Read all sort orders so the next banner always receives a unique position,
+    // even if there are older unpublished rows in the table.
+    const { data: allRows, error: allRowsError } = await supabase
+      .from("homepage_banners")
+      .select("sort_order")
+      .order("sort_order", { ascending: true });
+
+    if (allRowsError) {
+      throw new Error(
+        `Could not determine banner order: ${
+          allRowsError.message ?? String(allRowsError)
+        }`
+      );
+    }
+
+    const nextSortOrder =
+      (allRows ?? []).reduce(
+        (highest, banner) =>
+          Math.max(highest, Number(banner.sort_order ?? -1)),
+        -1
+      ) + 1;
+
+    const extension =
+      bannerFile.name.split(".").pop()?.toLowerCase() || "jpg";
+
+    const uniqueId =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    const filePath = `banners/banner-${uniqueId}.${extension}`;
+    uploadedFilePath = filePath;
+
+    const { error: uploadError } = await supabase.storage
+      .from("homepage-media")
+      .upload(filePath, bannerFile, {
+        upsert: false,
+        contentType: bannerFile.type || "image/jpeg",
+      });
+
+    if (uploadError) {
+      throw new Error(
+        `Storage upload failed: ${
+          uploadError.message ?? String(uploadError)
+        }`
+      );
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from("homepage-media")
+      .getPublicUrl(filePath);
+
+    const { data: insertedBanner, error: insertError } = await supabase
+      .from("homepage_banners")
+      .insert({
+        image_url: publicUrlData.publicUrl,
+        eyebrow: bannerEyebrow.trim() || "SPIKEYDEE VIP",
+        title: bannerTitle.trim() || null,
+        subtitle: bannerSubtitle.trim() || null,
+        button_text: "JOIN VIP",
+        button_link: "membership",
+        sort_order: nextSortOrder,
+        is_published: true,
+        created_by: session.user.id,
+      })
+      .select("*")
+      .single();
+
+    if (insertError) {
+      await supabase.storage
+        .from("homepage-media")
+        .remove([filePath]);
+
+      uploadedFilePath = null;
+
+      throw new Error(
+        `Banner database insert failed: ${
+          insertError.message ?? String(insertError)
+        }`
+      );
+    }
+
+    if (insertedBanner) {
+      setHomepageBanners((current) =>
+        [
+          ...current.filter((banner) => banner.id !== insertedBanner.id),
+          insertedBanner as HomepageBanner,
+        ].sort((a, b) => a.sort_order - b.sort_order)
+      );
+    }
+
+    setBannerFile(null);
+    setBannerEyebrow("SPIKEYDEE VIP");
+    setBannerTitle("");
+    setBannerSubtitle("");
+    setBannerMessage(
+      `Banner added. ${activeBanners.length + 1} / ${MAX_HOMEPAGE_BANNERS} active slideshow banners.`
+    );
+
+    await loadHomepageBanners();
+  } catch (error) {
+    if (uploadedFilePath) {
+      await supabase.storage
+        .from("homepage-media")
+        .remove([uploadedFilePath]);
+    }
+
+    setBannerError(
+      error instanceof Error ? error.message : "Could not upload banner."
+    );
+  } finally {
+    setBannerSaving(false);
+  }
+};
+
+const deleteHomepageBanner = async (banner: HomepageBanner) => {
+  if (!window.confirm("Delete this homepage banner?")) return;
+
+  const { error } = await supabase
+    .from("homepage_banners")
+    .delete()
+    .eq("id", banner.id);
+
+  if (error) {
+    setBannerError(error.message);
+    return;
+  }
+
+  const marker = "/storage/v1/object/public/homepage-media/";
+  const markerIndex = banner.image_url.indexOf(marker);
+
+  if (markerIndex >= 0) {
+    const path = decodeURIComponent(
+      banner.image_url.slice(markerIndex + marker.length)
+    );
+
+    await supabase.storage
+      .from("homepage-media")
+      .remove([path]);
+  }
+
+  setBannerMessage("Banner removed.");
+  await loadHomepageBanners();
+};
+
+const toggleHomepageBanner = async (banner: HomepageBanner) => {
+  const { error } = await supabase
+    .from("homepage_banners")
+    .update({
+      is_published: !banner.is_published,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", banner.id);
+
+  if (error) {
+    setBannerError(error.message);
+    return;
+  }
+
+  await loadHomepageBanners();
+};
+
+
+const uploadHomepageBrand = async () => {
+  if (!brandFile) {
+    setBrandError("Choose a brand logo first.");
+    return;
+  }
+
+  setBrandSaving(true);
+  setBrandError("");
+  setBrandMessage("");
+
+  let uploadedFilePath: string | null = null;
+
+  const withTimeout = async <T,>(
+    promise: PromiseLike<T>,
+    label: string,
+    timeoutMs = 60000
+  ): Promise<T> => {
+    return await Promise.race([
+      Promise.resolve(promise),
+      new Promise<T>((_, reject) => {
+        window.setTimeout(() => {
+          reject(
+            new Error(
+              `${label} timed out. Check your connection and try again.`
+            )
+          );
+        }, timeoutMs);
+      }),
+    ]);
+  };
+
+  try {
+    const activeResult = await withTimeout(
+      supabase
+        .from("homepage_brands")
+        .select("id, sort_order, is_published")
+        .eq("is_published", true)
+        .order("sort_order", { ascending: true }),
+      "Checking brand logos"
+    );
+
+    if (activeResult.error) {
+      throw new Error(
+        `Could not check active brand logos: ${
+          activeResult.error.message ?? String(activeResult.error)
+        }`
+      );
+    }
+
+    const activeBrands = activeResult.data ?? [];
+
+    if (activeBrands.length >= MAX_HOMEPAGE_BRANDS) {
+      setBrandError(
+        `The homepage brand carousel already has ${MAX_HOMEPAGE_BRANDS} active logos. Unpublish or delete one before adding another.`
+      );
+      return;
+    }
+
+    const allRowsResult = await withTimeout(
+      supabase
+        .from("homepage_brands")
+        .select("sort_order")
+        .order("sort_order", { ascending: true }),
+      "Checking brand logo order"
+    );
+
+    if (allRowsResult.error) {
+      throw new Error(
+        `Could not determine brand logo order: ${
+          allRowsResult.error.message ?? String(allRowsResult.error)
+        }`
+      );
+    }
+
+    const nextSortOrder =
+      (allRowsResult.data ?? []).reduce(
+        (highest, brand) =>
+          Math.max(highest, Number(brand.sort_order ?? -1)),
+        -1
+      ) + 1;
+
+    const extension =
+      brandFile.name.split(".").pop()?.toLowerCase() || "png";
+
+    const uniqueId =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    const filePath = `brands/brand-${uniqueId}.${extension}`;
+    uploadedFilePath = filePath;
+
+    const uploadResult = await withTimeout(
+      supabase.storage
+        .from("homepage-media")
+        .upload(filePath, brandFile, {
+          upsert: false,
+          contentType: brandFile.type || "image/png",
+          cacheControl: "3600",
+        }),
+      "Brand logo upload",
+      90000
+    );
+
+    if (uploadResult.error) {
+      throw new Error(
+        `Storage upload failed: ${
+          uploadResult.error.message ?? String(uploadResult.error)
+        }`
+      );
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from("homepage-media")
+      .getPublicUrl(filePath);
+
+    const insertResult = await withTimeout(
+      supabase
+        .from("homepage_brands")
+        .insert({
+          logo_url: publicUrlData.publicUrl,
+          name: brandName.trim() || null,
+          sort_order: nextSortOrder,
+          is_published: true,
+          created_by: session.user.id,
+        }),
+      "Saving brand logo"
+    );
+
+    if (insertResult.error) {
+      await supabase.storage
+        .from("homepage-media")
+        .remove([filePath]);
+
+      uploadedFilePath = null;
+
+      throw new Error(
+        `Brand logo database insert failed: ${
+          insertResult.error.message ?? String(insertResult.error)
+        }`
+      );
+    }
+
+    uploadedFilePath = null;
+    setBrandFile(null);
+    setBrandName("");
+    setBrandMessage(
+      `Brand logo added. ${activeBrands.length + 1} / ${MAX_HOMEPAGE_BRANDS} active logos.`
+    );
+
+    await loadHomepageBrands();
+  } catch (error) {
+    if (uploadedFilePath) {
+      try {
+        await supabase.storage
+          .from("homepage-media")
+          .remove([uploadedFilePath]);
+      } catch {
+        // Keep the original error visible.
+      }
+    }
+
+    setBrandError(
+      error instanceof Error ? error.message : "Could not upload brand logo."
+    );
+  } finally {
+    setBrandSaving(false);
+  }
+};
+
+const deleteHomepageBrand = async (brand: HomepageBrand) => {
+  if (!window.confirm("Delete this brand logo?")) return;
+
+  const { error } = await supabase
+    .from("homepage_brands")
+    .delete()
+    .eq("id", brand.id);
+
+  if (error) {
+    setBrandError(error.message);
+    return;
+  }
+
+  const marker = "/storage/v1/object/public/homepage-media/";
+  const markerIndex = brand.logo_url.indexOf(marker);
+
+  if (markerIndex >= 0) {
+    const path = decodeURIComponent(
+      brand.logo_url.slice(markerIndex + marker.length)
+    );
+
+    await supabase.storage
+      .from("homepage-media")
+      .remove([path]);
+  }
+
+  setBrandMessage("Brand logo removed.");
+  await loadHomepageBrands();
+};
+
+const toggleHomepageBrand = async (brand: HomepageBrand) => {
+  const nextPublishedState = !brand.is_published;
+
+  if (
+    nextPublishedState &&
+    activeHomepageBrandCount >= MAX_HOMEPAGE_BRANDS
+  ) {
+    setBrandError(
+      `You already have ${MAX_HOMEPAGE_BRANDS} active brand logos. Hide or delete one before publishing another.`
+    );
+    return;
+  }
+
+  const { error } = await supabase
+    .from("homepage_brands")
+    .update({
+      is_published: nextPublishedState,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", brand.id);
+
+  if (error) {
+    setBrandError(error.message);
+    return;
+  }
+
+  setBrandError("");
+  await loadHomepageBrands();
+};
+
+const uploadHomepageTile = async () => {
+  if (!tileFile) {
+    setTileError("Choose a tile image first.");
+    return;
+  }
+
+  setTileSaving(true);
+  setTileError("");
+  setTileMessage("");
+
+  let uploadedFilePath: string | null = null;
+
+  // Prevent the Studio button from remaining on "Uploading..." forever
+  // if Storage or the database does not answer.
+  const withTimeout = async <T,>(
+    promise: PromiseLike<T>,
+    label: string,
+    timeoutMs = 60000
+  ): Promise<T> => {
+    return await Promise.race([
+      Promise.resolve(promise),
+      new Promise<T>((_, reject) => {
+        window.setTimeout(() => {
+          reject(
+            new Error(
+              `${label} timed out. Check your connection and try the upload again.`
+            )
+          );
+        }, timeoutMs);
+      }),
+    ]);
+  };
+
+  try {
+    const activeResult = await withTimeout(
+      supabase
+        .from("homepage_tiles")
+        .select("id, sort_order, is_published")
+        .eq("is_published", true)
+        .order("sort_order", { ascending: true }),
+      "Checking homepage photos"
+    );
+
+    const activeRows = activeResult.data;
+    const activeRowsError = activeResult.error;
+
+    if (activeRowsError) {
+      throw new Error(
+        `Could not check active homepage photos: ${
+          activeRowsError.message ?? String(activeRowsError)
+        }`
+      );
+    }
+
+    const activeTiles = activeRows ?? [];
+
+    if (activeTiles.length >= MAX_HOMEPAGE_TILES) {
+      setTileError(
+        `The homepage photo grid already has ${MAX_HOMEPAGE_TILES} active photos. Unpublish or delete one before adding another.`
+      );
+      return;
+    }
+
+    const allRowsResult = await withTimeout(
+      supabase
+        .from("homepage_tiles")
+        .select("sort_order")
+        .order("sort_order", { ascending: true }),
+      "Checking homepage photo order"
+    );
+
+    const allRows = allRowsResult.data;
+    const allRowsError = allRowsResult.error;
+
+    if (allRowsError) {
+      throw new Error(
+        `Could not determine homepage photo order: ${
+          allRowsError.message ?? String(allRowsError)
+        }`
+      );
+    }
+
+    const nextSortOrder =
+      (allRows ?? []).reduce(
+        (highest, tile) =>
+          Math.max(highest, Number(tile.sort_order ?? -1)),
+        -1
+      ) + 1;
+
+    const extension =
+      tileFile.name.split(".").pop()?.toLowerCase() || "jpg";
+
+    const uniqueId =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    const filePath = `tiles/tile-${uniqueId}.${extension}`;
+    uploadedFilePath = filePath;
+
+    const uploadResult = await withTimeout(
+      supabase.storage
+        .from("homepage-media")
+        .upload(filePath, tileFile, {
+          upsert: false,
+          contentType: tileFile.type || "image/jpeg",
+          cacheControl: "3600",
+        }),
+      "Photo upload",
+      90000
+    );
+
+    if (uploadResult.error) {
+      throw new Error(
+        `Storage upload failed: ${
+          uploadResult.error.message ?? String(uploadResult.error)
+        }`
+      );
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from("homepage-media")
+      .getPublicUrl(filePath);
+
+    // Do not request the inserted row back with .select().single().
+    // The extra SELECT can be blocked by RLS and make the Studio UI appear
+    // stuck even after the image itself successfully uploaded.
+    const insertResult = await withTimeout(
+      supabase
+        .from("homepage_tiles")
+        .insert({
+          image_url: publicUrlData.publicUrl,
+          title: tileTitle.trim() || null,
+          subtitle: tileSubtitle.trim() || null,
+          button_text: "JOIN VIP",
+          button_link: "membership",
+          sort_order: nextSortOrder,
+          is_published: true,
+          created_by: session.user.id,
+        }),
+      "Saving homepage photo"
+    );
+
+    if (insertResult.error) {
+      await supabase.storage
+        .from("homepage-media")
+        .remove([filePath]);
+
+      uploadedFilePath = null;
+
+      throw new Error(
+        `Homepage photo database insert failed: ${
+          insertResult.error.message ?? String(insertResult.error)
+        }`
+      );
+    }
+
+    // The database row is now saved, so do not delete the Storage file
+    // if refreshing the Studio list has a separate problem.
+    uploadedFilePath = null;
+
+    setTileFile(null);
+    setTileTitle("");
+    setTileSubtitle("");
+    setTileMessage(
+      `Homepage photo added. ${activeTiles.length + 1} / ${MAX_HOMEPAGE_TILES} active grid photos.`
+    );
+
+    await loadHomepageTiles();
+  } catch (error) {
+    if (uploadedFilePath) {
+      try {
+        await supabase.storage
+          .from("homepage-media")
+          .remove([uploadedFilePath]);
+      } catch {
+        // Ignore cleanup errors so the real upload error is shown.
+      }
+    }
+
+    setTileError(
+      error instanceof Error ? error.message : "Could not upload homepage photo."
+    );
+  } finally {
+    setTileSaving(false);
+  }
+};
+
+const deleteHomepageTile = async (tile: HomepageTile) => {
+  if (!window.confirm("Delete this homepage tile?")) return;
+
+  const { error } = await supabase
+    .from("homepage_tiles")
+    .delete()
+    .eq("id", tile.id);
+
+  if (error) {
+    setTileError(error.message);
+    return;
+  }
+
+  const marker = "/storage/v1/object/public/homepage-media/";
+  const markerIndex = tile.image_url.indexOf(marker);
+
+  if (markerIndex >= 0) {
+    const path = decodeURIComponent(
+      tile.image_url.slice(markerIndex + marker.length)
+    );
+
+    await supabase.storage
+      .from("homepage-media")
+      .remove([path]);
+  }
+
+  setTileMessage("Homepage tile removed.");
+  await loadHomepageTiles();
+};
+
+const toggleHomepageTile = async (tile: HomepageTile) => {
+  const { error } = await supabase
+    .from("homepage_tiles")
+    .update({
+      is_published: !tile.is_published,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", tile.id);
+
+  if (error) {
+    setTileError(error.message);
+    return;
+  }
+
+  await loadHomepageTiles();
+};
 
 const updateHeroSetting = <
   K extends keyof HomepageHeroSettings
@@ -2768,6 +5087,584 @@ const saveHeroSettings = async () => {
               Back to Site
             </button>
           </div>
+
+        
+          {/* =====================================================
+    PUBLIC HOMEPAGE MANAGER
+===================================================== */}
+
+<div
+  style={{
+    padding: "26px",
+    border: "1px solid var(--border)",
+    borderRadius: "18px",
+    marginBottom: "36px",
+    background: "#101010",
+  }}
+>
+  <span className="section-kicker">PUBLIC HOMEPAGE</span>
+
+  <h2 style={{ margin: "8px 0" }}>
+    Homepage Slideshow Banners
+  </h2>
+
+  <p
+    style={{
+      color: "var(--text-muted)",
+      lineHeight: 1.6,
+      marginBottom: "24px",
+    }}
+  >
+    Upload promotional banners shown in the slideshow at the top of the
+    public Spikeydee VIP homepage. You can add up to {MAX_HOMEPAGE_BANNERS}.
+  </p>
+
+  <p
+    style={{
+      color: activeHomepageBannerCount >= MAX_HOMEPAGE_BANNERS ? "var(--gold-2)" : "var(--text-muted)",
+      fontSize: "12px",
+      fontWeight: 800,
+      letterSpacing: ".08em",
+      margin: "-10px 0 20px",
+    }}
+  >
+    {activeHomepageBannerCount} / {MAX_HOMEPAGE_BANNERS} ACTIVE BANNERS
+  </p>
+
+  <div
+    style={{
+      display: "grid",
+      gap: "14px",
+    }}
+  >
+    <input
+      type="text"
+      value={bannerEyebrow}
+      onChange={(event) => setBannerEyebrow(event.target.value)}
+      placeholder="Small heading — SPIKEYDEE VIP"
+      style={fieldStyle}
+    />
+
+    <input
+      type="text"
+      value={bannerTitle}
+      onChange={(event) => setBannerTitle(event.target.value)}
+      placeholder="Banner title"
+      style={fieldStyle}
+    />
+
+    <input
+      type="text"
+      value={bannerSubtitle}
+      onChange={(event) => setBannerSubtitle(event.target.value)}
+      placeholder="Banner subtitle"
+      style={fieldStyle}
+    />
+
+    <input
+      type="file"
+      accept="image/jpeg,image/png,image/webp"
+      onChange={(event) =>
+        setBannerFile(event.target.files?.[0] ?? null)
+      }
+      style={fieldStyle}
+    />
+
+    <button
+      type="button"
+      className="primary-button"
+      disabled={bannerSaving || activeHomepageBannerCount >= MAX_HOMEPAGE_BANNERS}
+      onClick={() => void uploadHomepageBanner()}
+      style={{
+        width: "fit-content",
+      }}
+    >
+      {bannerSaving
+        ? "Uploading..."
+        : activeHomepageBannerCount >= MAX_HOMEPAGE_BANNERS
+          ? "6 Banner Limit Reached"
+          : "Add Slideshow Banner"}
+    </button>
+  </div>
+
+  {bannerMessage && (
+    <p style={{ color: "#fff" }}>
+      {bannerMessage}
+    </p>
+  )}
+
+  {bannerError && (
+    <p style={{ color: "#ff6b6b" }}>
+      {bannerError}
+    </p>
+  )}
+
+  {homepageBanners.length > 0 && (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns:
+          "repeat(auto-fit, minmax(280px, 1fr))",
+        gap: "16px",
+        marginTop: "26px",
+      }}
+    >
+      {homepageBanners.map((banner) => (
+        <article
+          key={banner.id}
+          style={uploadBoxStyle}
+        >
+          <img
+            src={banner.image_url}
+            alt={banner.title ?? "Homepage banner"}
+            style={{
+              display: "block",
+              width: "100%",
+              aspectRatio: "16 / 6",
+              objectFit: "cover",
+              borderRadius: "10px",
+            }}
+          />
+
+          <div style={{ marginTop: "14px" }}>
+            <span className="section-kicker">
+              {banner.is_published ? "PUBLISHED" : "HIDDEN"}
+            </span>
+
+            <h3
+              style={{
+                margin: "7px 0 4px",
+              }}
+            >
+              {banner.title || "Untitled Banner"}
+            </h3>
+
+            {banner.subtitle && (
+              <p
+                style={{
+                  margin: 0,
+                  color: "var(--text-muted)",
+                }}
+              >
+                {banner.subtitle}
+              </p>
+            )}
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: "10px",
+              marginTop: "16px",
+            }}
+          >
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() =>
+                void toggleHomepageBanner(banner)
+              }
+            >
+              {banner.is_published ? "Hide" : "Publish"}
+            </button>
+
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() =>
+                void deleteHomepageBanner(banner)
+              }
+            >
+              Delete
+            </button>
+          </div>
+        </article>
+      ))}
+    </div>
+  )}
+</div>
+
+
+{/* =====================================================
+    HOMEPAGE BRAND LOGO CAROUSEL
+===================================================== */}
+
+<div
+  style={{
+    padding: "26px",
+    border: "1px solid var(--border)",
+    borderRadius: "18px",
+    marginBottom: "36px",
+    background: "#101010",
+  }}
+>
+  <span className="section-kicker">PUBLIC HOMEPAGE</span>
+
+  <h2 style={{ margin: "8px 0" }}>
+    Brand Logo Slideshow
+  </h2>
+
+  <p
+    style={{
+      color: "var(--text-muted)",
+      lineHeight: 1.6,
+      marginBottom: "24px",
+    }}
+  >
+    Upload transparent PNG or WebP brand logos for the carousel shown directly
+    underneath the public homepage banner slideshow. You can publish up to{" "}
+    {MAX_HOMEPAGE_BRANDS}.
+  </p>
+
+  <p
+    style={{
+      color:
+        activeHomepageBrandCount >= MAX_HOMEPAGE_BRANDS
+          ? "var(--gold-2)"
+          : "var(--text-muted)",
+      fontSize: "12px",
+      fontWeight: 800,
+      letterSpacing: ".08em",
+      margin: "-10px 0 20px",
+    }}
+  >
+    {activeHomepageBrandCount} / {MAX_HOMEPAGE_BRANDS} ACTIVE LOGOS
+  </p>
+
+  <div
+    style={{
+      display: "grid",
+      gap: "14px",
+    }}
+  >
+    <input
+      type="text"
+      value={brandName}
+      onChange={(event) => setBrandName(event.target.value)}
+      placeholder="Brand / series name (optional)"
+      style={fieldStyle}
+    />
+
+    <input
+      type="file"
+      accept="image/png,image/webp,image/jpeg"
+      onChange={(event) =>
+        setBrandFile(event.target.files?.[0] ?? null)
+      }
+      style={fieldStyle}
+    />
+
+    <button
+      type="button"
+      className="primary-button"
+      disabled={
+        brandSaving ||
+        activeHomepageBrandCount >= MAX_HOMEPAGE_BRANDS
+      }
+      onClick={() => void uploadHomepageBrand()}
+      style={{
+        width: "fit-content",
+      }}
+    >
+      {brandSaving
+        ? "Uploading..."
+        : activeHomepageBrandCount >= MAX_HOMEPAGE_BRANDS
+          ? "12 Logo Limit Reached"
+          : "Add Brand Logo"}
+    </button>
+  </div>
+
+  {brandMessage && (
+    <p style={{ color: "#fff" }}>
+      {brandMessage}
+    </p>
+  )}
+
+  {brandError && (
+    <p style={{ color: "#ff6b6b" }}>
+      {brandError}
+    </p>
+  )}
+
+  {homepageBrands.length > 0 && (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns:
+          "repeat(auto-fit, minmax(220px, 1fr))",
+        gap: "16px",
+        marginTop: "26px",
+      }}
+    >
+      {homepageBrands.map((brand) => (
+        <article
+          key={brand.id}
+          style={uploadBoxStyle}
+        >
+          <div
+            style={{
+              minHeight: "150px",
+              display: "grid",
+              placeItems: "center",
+              padding: "20px",
+              background: "#050505",
+              borderRadius: "10px",
+            }}
+          >
+            <img
+              src={brand.logo_url}
+              alt={brand.name ?? "Brand logo"}
+              style={{
+                display: "block",
+                width: "100%",
+                maxWidth: "220px",
+                maxHeight: "100px",
+                objectFit: "contain",
+              }}
+            />
+          </div>
+
+          <div style={{ marginTop: "14px" }}>
+            <span className="section-kicker">
+              {brand.is_published ? "PUBLISHED" : "HIDDEN"}
+            </span>
+
+            <h3
+              style={{
+                margin: "7px 0 4px",
+              }}
+            >
+              {brand.name || "Untitled Brand"}
+            </h3>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: "10px",
+              marginTop: "16px",
+            }}
+          >
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() =>
+                void toggleHomepageBrand(brand)
+              }
+            >
+              {brand.is_published ? "Hide" : "Publish"}
+            </button>
+
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() =>
+                void deleteHomepageBrand(brand)
+              }
+            >
+              Delete
+            </button>
+          </div>
+        </article>
+      ))}
+    </div>
+  )}
+</div>
+
+
+{/* =====================================================
+    HOMEPAGE PHOTO GRID
+===================================================== */}
+
+<div
+  style={{
+    padding: "26px",
+    border: "1px solid var(--border)",
+    borderRadius: "18px",
+    marginBottom: "36px",
+    background: "#101010",
+  }}
+>
+  <span className="section-kicker">PUBLIC HOMEPAGE</span>
+
+  <h2 style={{ margin: "8px 0" }}>
+    Homepage Photo Grid
+  </h2>
+
+  <p
+    style={{
+      color: "var(--text-muted)",
+      lineHeight: 1.6,
+      marginBottom: "24px",
+    }}
+  >
+    Upload promotional artwork for the image grid displayed underneath
+    the homepage slideshow. You can add up to {MAX_HOMEPAGE_TILES}.
+  </p>
+
+  <p
+    style={{
+      color: activeHomepageTileCount >= MAX_HOMEPAGE_TILES ? "var(--gold-2)" : "var(--text-muted)",
+      fontSize: "12px",
+      fontWeight: 800,
+      letterSpacing: ".08em",
+      margin: "-10px 0 20px",
+    }}
+  >
+    {activeHomepageTileCount} / {MAX_HOMEPAGE_TILES} ACTIVE PHOTOS
+  </p>
+
+  <div
+    style={{
+      display: "grid",
+      gap: "14px",
+    }}
+  >
+    <input
+      type="text"
+      value={tileTitle}
+      onChange={(event) =>
+        setTileTitle(event.target.value)
+      }
+      placeholder="Tile title"
+      style={fieldStyle}
+    />
+
+    <input
+      type="text"
+      value={tileSubtitle}
+      onChange={(event) =>
+        setTileSubtitle(event.target.value)
+      }
+      placeholder="Tile subtitle (optional)"
+      style={fieldStyle}
+    />
+
+    <input
+      type="file"
+      accept="image/jpeg,image/png,image/webp"
+      onChange={(event) =>
+        setTileFile(event.target.files?.[0] ?? null)
+      }
+      style={fieldStyle}
+    />
+
+    <button
+      type="button"
+      className="primary-button"
+      disabled={tileSaving || activeHomepageTileCount >= MAX_HOMEPAGE_TILES}
+      onClick={() => void uploadHomepageTile()}
+      style={{
+        width: "fit-content",
+      }}
+    >
+      {tileSaving
+        ? "Uploading..."
+        : activeHomepageTileCount >= MAX_HOMEPAGE_TILES
+          ? "6 Photo Limit Reached"
+          : "Add Homepage Photo"}
+    </button>
+  </div>
+
+  {tileMessage && (
+    <p style={{ color: "#fff" }}>
+      {tileMessage}
+    </p>
+  )}
+
+  {tileError && (
+    <p style={{ color: "#ff6b6b" }}>
+      {tileError}
+    </p>
+  )}
+
+  {homepageTiles.length > 0 && (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns:
+          "repeat(auto-fit, minmax(220px, 1fr))",
+        gap: "16px",
+        marginTop: "26px",
+      }}
+    >
+      {homepageTiles.map((tile) => (
+        <article
+          key={tile.id}
+          style={uploadBoxStyle}
+        >
+          <img
+            src={tile.image_url}
+            alt={tile.title ?? "Homepage artwork"}
+            style={{
+              display: "block",
+              width: "100%",
+              aspectRatio: "4 / 5",
+              objectFit: "cover",
+              borderRadius: "10px",
+            }}
+          />
+
+          <div style={{ marginTop: "14px" }}>
+            <span className="section-kicker">
+              {tile.is_published ? "PUBLISHED" : "HIDDEN"}
+            </span>
+
+            <h3
+              style={{
+                margin: "7px 0 4px",
+              }}
+            >
+              {tile.title || "Untitled Photo"}
+            </h3>
+
+            {tile.subtitle && (
+              <p
+                style={{
+                  margin: 0,
+                  color: "var(--text-muted)",
+                }}
+              >
+                {tile.subtitle}
+              </p>
+            )}
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: "10px",
+              marginTop: "16px",
+            }}
+          >
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() =>
+                void toggleHomepageTile(tile)
+              }
+            >
+              {tile.is_published ? "Hide" : "Publish"}
+            </button>
+
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() =>
+                void deleteHomepageTile(tile)
+              }
+            >
+              Delete
+            </button>
+          </div>
+        </article>
+      ))}
+    </div>
+  )}
+</div>
 
          {/* =====================================================
     HOMEPAGE FEATURED TEASER EDITOR
@@ -3356,8 +6253,13 @@ const saveHeroSettings = async () => {
 
           <div className="section-heading">
             <div>
-              <span className="section-kicker">CATALOG</span>
+              <span className="section-kicker">CATALOG + PUBLIC POSTERS</span>
               <h2>Studio Videos</h2>
+              <p style={{ color: "var(--text-muted)", lineHeight: 1.55, marginBottom: 0 }}>
+                Edit a video's thumbnail to change its poster. Use “Show as Public Poster”
+                to display that artwork on the public homepage without exposing the member
+                video library.
+              </p>
             </div>
           </div>
 
@@ -3391,7 +6293,7 @@ const saveHeroSettings = async () => {
                           {video.is_published ? "PUBLISHED" : "DRAFT"}
                         </span>
                         {video.is_featured && (
-                          <span className="section-kicker">FEATURED</span>
+                          <span className="section-kicker">PUBLIC POSTER</span>
                         )}
                       </div>
                       <h3>{video.title}</h3>
@@ -3462,7 +6364,7 @@ const saveHeroSettings = async () => {
                       className="secondary-button"
                       onClick={() => void toggleFeatured(video)}
                     >
-                      {video.is_featured ? "Remove Featured" : "Make Featured"}
+                      {video.is_featured ? "Remove Public Poster" : "Show as Public Poster"}
                     </button>
                     <button
                       type="button"
@@ -3487,71 +6389,22 @@ const saveHeroSettings = async () => {
    ========================================================= */
 
 type SiteHeaderProps = {
-  menuOpen:
-    boolean;
-
-  setMenuOpen:
-    (
-      value:
-        boolean
-    ) => void;
-
-  searchOpen:
-    boolean;
-
-  setSearchOpen:
-    (
-      value:
-        boolean
-    ) => void;
-
-  searchValue:
-    string;
-
-  setSearchValue:
-    (
-      value:
-        string
-    ) => void;
-
-  onSearch:
-    (
-      event:
-        FormEvent<HTMLFormElement>
-    ) => void;
-
-  onHome:
-    () => void;
-
-  onLegal:
-    (page: LegalPageKey) => void;
-
-  onSubscribe:
-    () => void;
-
-  session:
-    Session | null;
-
-  profile:
-    Profile | null;
-
-  onAccount:
-    () => void;
-
-  onStudio:
-    () => void;
-
-  onStudioLogin:
-    () => void;
-
-  onLogout:
-    () => void;
-
-  membership:
-    MembershipState;
-
-  accessActive:
-    boolean;
+  menuOpen: boolean;
+  setMenuOpen: (value: boolean) => void;
+  searchOpen: boolean;
+  setSearchOpen: (value: boolean) => void;
+  searchValue: string;
+  setSearchValue: (value: string) => void;
+  onSearch: (event: FormEvent<HTMLFormElement>) => void;
+  onHome: () => void;
+  onLegal: (page: LegalPageKey) => void;
+  onSubscribe: () => void;
+  session: Session | null;
+  profile: Profile | null;
+  onAccount: () => void;
+  onLogout: () => void;
+  membership: MembershipState;
+  accessActive: boolean;
 };
 
 function SiteHeader({
@@ -3567,9 +6420,6 @@ function SiteHeader({
   onSubscribe,
   session,
   profile,
-  onAccount,
-  onStudio,
-  onStudioLogin,
   onLogout,
   membership,
   accessActive,
@@ -3577,7 +6427,46 @@ function SiteHeader({
   const membershipLabel =
     accessActive && membership.level !== "none"
       ? PLAN_LABELS[membership.level as PaidPlan]
-      : "Sign Up";
+      : "Join VIP";
+
+  const closeMenu = () => setMenuOpen(false);
+
+  const goToSection = (id: string) => {
+    closeMenu();
+    window.setTimeout(() => {
+      document.getElementById(id)?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 0);
+  };
+
+  const openVideos = () => {
+    closeMenu();
+
+    if (!accessActive && !profile?.is_admin) {
+      onSubscribe();
+      return;
+    }
+
+    onHome();
+    window.setTimeout(() => {
+      document.getElementById("member-videos")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 0);
+  };
+
+  const openModels = () => {
+    closeMenu();
+    if (!accessActive && !profile?.is_admin) {
+      onSubscribe();
+      return;
+    }
+    onHome();
+    goToSection("member-videos");
+  };
 
   return (
     <header className="site-header">
@@ -3585,182 +6474,176 @@ function SiteHeader({
         <button
           type="button"
           className="mobile-menu-button"
-          onClick={() =>
-            setMenuOpen(
-              !menuOpen
-            )
-          }
-          aria-label="Open menu"
+          onClick={() => setMenuOpen(!menuOpen)}
+          aria-label={menuOpen ? "Close menu" : "Open menu"}
+          aria-expanded={menuOpen}
         >
-          ☰
+          {menuOpen ? "×" : "☰"}
         </button>
 
         <button
           type="button"
           className="brand"
-          onClick={
-            onHome
-          }
+          onClick={() => {
+            closeMenu();
+            onHome();
+          }}
         >
-          <span className="brand-main">
-            SPIKEYDEE
-          </span>
-
-          <span className="brand-vip">
-            VIP
-          </span>
+         <img
+  src={spikeydeeVipLogo}
+  alt="Spikeydee VIP"
+  className="brand-logo-image"
+/>
         </button>
 
+<div className="header-actions">
+  {(accessActive || profile?.is_admin) && (
+    <button
+      type="button"
+      className="search-button"
+      onClick={() => setSearchOpen(!searchOpen)}
+      aria-label="Search videos"
+    >
+      ⌕
+    </button>
+  )}
+
+  <button
+    type="button"
+    className="signup-button"
+    onClick={onSubscribe}
+  >
+    {accessActive ? membershipLabel : "JOIN VIP"}
+  </button>
+</div>
+      </div>
+
+      {menuOpen && (
         <nav
-          className={`main-nav ${
-            menuOpen
-              ? "nav-open"
-              : ""
-          }`}
+          aria-label="Main navigation"
+          style={{
+            position: "absolute",
+            top: "100%",
+            left: 0,
+            right: 0,
+            zIndex: 1100,
+            padding: "20px clamp(20px, 4vw, 56px) 26px",
+            borderTop: "1px solid rgba(255,255,255,.08)",
+            borderBottom: "1px solid rgba(255,255,255,.12)",
+            background: "rgba(3,3,3,.98)",
+            boxShadow: "0 26px 70px rgba(0,0,0,.72)",
+            backdropFilter: "blur(18px)",
+          }}
         >
-          <button
-            type="button"
-            onClick={
-              onHome
-            }
+          <div
+            style={{
+              width: "min(1180px, 100%)",
+              margin: "0 auto",
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
+              gap: "10px",
+            }}
           >
-            Home
-          </button>
-
-          <button
-            type="button"
-            onClick={() =>
-              onLegal("terms")
-            }
-          >
-            Legal
-          </button>
-
-          <button
-            type="button"
-            onClick={
-              onSubscribe
-            }
-          >
-            {
-              membershipLabel
-            }
-          </button>
-
-          {profile?.is_admin && (
             <button
               type="button"
-              onClick={
-                onStudio
-              }
+              className="secondary-button"
+              onClick={() => {
+                closeMenu();
+                onHome();
+              }}
+              style={{ minHeight: "54px", textAlign: "left" }}
             >
-              Studio
+              HOME
             </button>
-          )}
-        </nav>
 
-        <div className="header-actions">
-          <button
-            type="button"
-            className="search-button"
-            onClick={() =>
-              setSearchOpen(
-                !searchOpen
-              )
-            }
-            aria-label="Search"
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={openModels}
+              style={{ minHeight: "54px", textAlign: "left" }}
+            >
+              MODELS
+            </button>
+
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={openVideos}
+              style={{ minHeight: "54px", textAlign: "left" }}
+            >
+              VIDEOS
+            </button>
+
+            <button
+              type="button"
+              className="primary-button"
+              onClick={() => {
+                closeMenu();
+                onSubscribe();
+              }}
+              style={{ minHeight: "54px" }}
+            >
+              {accessActive ? membershipLabel.toUpperCase() : "JOIN / UNLOCK VIP"}
+            </button>
+          </div>
+
+          <div
+            style={{
+              width: "min(1180px, 100%)",
+              margin: "16px auto 0",
+              display: "flex",
+              gap: "18px",
+              flexWrap: "wrap",
+            }}
           >
-            ⌕
-          </button>
+            <button
+              type="button"
+              className="view-all"
+              onClick={() => {
+                closeMenu();
+                onLegal("terms");
+              }}
+            >
+              Terms
+            </button>
 
-          <button
-            type="button"
-            className="signup-button"
-            onClick={
-              onSubscribe
-            }
-          >
-            {accessActive
-              ? `✓ ${membershipLabel}`
-              : "Unlock VIP"}
-          </button>
+            <button
+              type="button"
+              className="view-all"
+              onClick={() => {
+                closeMenu();
+                onLegal("privacy");
+              }}
+            >
+              Privacy
+            </button>
 
-          {session ? (
-            <>
+            {session && (
               <button
                 type="button"
-                className="login-button"
-                onClick={
-                  onAccount
-                }
-              >
-                Account
-              </button>
-
-              {profile?.is_admin && (
-                <button
-                  type="button"
-                  className="login-button"
-                  onClick={
-                    onStudio
-                  }
-                >
-                  Studio
-                </button>
-              )}
-
-              <button
-                type="button"
-                className="login-button"
-                onClick={
-                  onLogout
-                }
+                className="view-all"
+                onClick={() => {
+                  closeMenu();
+                  onLogout();
+                }}
               >
                 Log Out
               </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              className="login-button"
-              onClick={
-                onStudioLogin
-              }
-            >
-              Studio Log In
-            </button>
-          )}
-        </div>
-      </div>
+            )}
+          </div>
+        </nav>
+      )}
 
-      {searchOpen && (
-        <form
-          className="search-panel"
-          onSubmit={
-            onSearch
-          }
-        >
+      {(accessActive || profile?.is_admin) && searchOpen && (
+        <form className="search-panel" onSubmit={onSearch}>
           <input
             autoFocus
             type="search"
-            value={
-              searchValue
-            }
-            onChange={(
-              event
-            ) =>
-              setSearchValue(
-                event.target.value
-              )
-            }
+            value={searchValue}
+            onChange={(event) => setSearchValue(event.target.value)}
             placeholder="Search Spikeydeevip..."
           />
-
-          <button
-            type="submit"
-          >
-            Search
-          </button>
+          <button type="submit">Search</button>
         </form>
       )}
     </header>
@@ -3787,99 +6670,90 @@ function AgeGate({ onConfirm }: AgeGateProps) {
 
   return (
     <div
+      className="age-gate"
       role="dialog"
       aria-modal="true"
       aria-labelledby="age-gate-title"
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 5000,
-        display: "grid",
-        placeItems: "center",
-        padding: "24px",
-        background: "#050505",
-      }}
     >
-      <section
-        style={{
-          width: "min(620px, 100%)",
-          padding: "38px",
-          border: "1px solid var(--border)",
-          borderRadius: "22px",
-          background: "#0d0d0d",
-          textAlign: "center",
-          boxShadow: "0 35px 100px rgba(0,0,0,.75)",
-        }}
-      >
-        <span className="section-kicker">SPIKEYDEE VIP</span>
+      <section className="age-gate-inner">
+        <div className="age-gate-brand">
+          <span>SPIKEYDEE</span>
+          <strong>VIP</strong>
+        </div>
 
-        <h1
-          id="age-gate-title"
-          style={{
-            margin: "14px 0 12px",
-            fontSize: "clamp(34px, 7vw, 64px)",
-            lineHeight: 1,
-          }}
-        >
-          Adults Only
-        </h1>
+        <h1 id="age-gate-title">ADULTS ONLY — 18+</h1>
 
-        <p
-          style={{
-            maxWidth: "500px",
-            margin: "0 auto",
-            color: "var(--text-muted)",
-            lineHeight: 1.7,
-            fontSize: "16px",
-          }}
-        >
-          This website contains adult material intended only for people who are
-          18 years of age or older. By entering, you confirm that you are at
-          least 18 and agree to follow the site Terms and Privacy Policy.
+        <p className="age-gate-lead">
+          This website contains sexually explicit material intended only for adults.
         </p>
 
-        <div
-          style={{
-            display: "grid",
-            gap: "12px",
-            marginTop: "28px",
-          }}
-        >
+        <p className="age-gate-copy">
+          By entering Spikeydee VIP, you confirm that you are at least 18 years old
+          and have reached the age of majority required to view adult content in the
+          jurisdiction where you are located.
+        </p>
+
+        <p className="age-gate-copy">
+          You also confirm that accessing sexually explicit material is lawful where
+          you are located.
+        </p>
+
+        <div className="age-gate-confirmation">
+          <h2>
+            BY SELECTING “I AM 18+ — ENTER,” YOU CONFIRM THAT:
+          </h2>
+
+          <ul>
+            <li>
+              You are at least 18 years old and meet the applicable age-of-majority
+              requirements in your jurisdiction.
+            </li>
+
+            <li>
+              You are legally permitted to access sexually explicit adult material.
+            </li>
+
+            <li>
+              You understand that this website contains explicit adult content.
+            </li>
+
+            <li>
+              You agree to the Spikeydee VIP Terms of Service and Privacy Policy.
+            </li>
+
+            <li>
+              If you are under 18 or otherwise prohibited from viewing this material,
+              you must leave this website immediately.
+            </li>
+          </ul>
+        </div>
+
+        <div className="age-gate-actions">
           <button
             type="button"
-            className="primary-button"
+            className="age-gate-enter"
             onClick={onConfirm}
-            style={{ width: "100%" }}
           >
-            ENTER — I AM 18+
+            I AM 18+ — ENTER
           </button>
 
           <button
             type="button"
-            className="secondary-button"
+            className="age-gate-exit"
             onClick={leaveSite}
-            style={{ width: "100%" }}
           >
-            EXIT
+            EXIT SITE
           </button>
         </div>
 
-        <p
-          style={{
-            margin: "18px 0 0",
-            color: "var(--text-muted)",
-            fontSize: "12px",
-            lineHeight: 1.5,
-          }}
-        >
-          Age confirmation is stored on this browser so you do not need to
-          confirm again on every refresh.
+        <p className="age-gate-fine-print">
+          Adults only. By entering, you acknowledge that you meet all applicable
+          age and legal requirements for accessing this website.
         </p>
       </section>
     </div>
   );
 }
-
 /* =========================================================
    PUBLIC LEGAL / COMPLIANCE PAGES
    ========================================================= */
@@ -4042,47 +6916,75 @@ const legalCopy: Record<LegalPageKey, LegalPageContent> = {
     ],
   },
 
-  "2257": {
-    title: "18 U.S.C. § 2257 Records Notice",
-    kicker: "RECORDKEEPING",
-    intro:
-      "This page is a production placeholder for the studio's final records-compliance notice. The exact notice depends on the content, producer status, and recordkeeping arrangement that actually apply.",
-    sections: [
-      {
-        heading: "Records Custodian",
-        body: (
-          <div>
-            <p>
-              Records custodian: <strong>{RECORDS_CUSTODIAN_NAME}</strong>
-            </p>
-            <p>
-              Records location: <strong>{RECORDS_CUSTODIAN_ADDRESS}</strong>
-            </p>
-          </div>
-        ),
-      },
-      {
-        heading: "Production Notice",
-        body: (
+"2257": {
+  title: "18 U.S.C. § 2257 Record-Keeping Requirements Compliance Statement",
+  kicker: "RECORDKEEPING",
+  intro:
+    "Spikeydee VIP maintains records as required by 18 U.S.C. §§ 2257 and 2257A and applicable provisions of 28 C.F.R. Part 75 for visual depictions subject to those requirements.",
+  sections: [
+    {
+      heading: "Age Verification",
+      body: (
+        <div>
           <p>
-            Before launch, insert the legally accurate statement addressing 18
-            U.S.C. §§ 2257 and 2257A, including any applicable producer,
-            secondary-producer, exemption, or record-location language.
+            All performers appearing in visual depictions of actual sexually
+            explicit conduct produced by Spikeydee VIP were 18 years of age
+            or older at the time of production.
           </p>
-        ),
-      },
-      {
-        heading: "No Placeholder Publication",
-        body: (
+
           <p>
-            Do not launch with placeholder custodian names or addresses. The
-            final notice should be reviewed against the studio's real performer
-            age-verification and recordkeeping practices.
+            Performer age and identity documentation for covered productions
+            is obtained and maintained in accordance with applicable federal
+            record-keeping requirements.
           </p>
-        ),
-      },
-    ],
-  },
+        </div>
+      ),
+    },
+
+    {
+      heading: "Custodian of Records",
+      body: (
+        <div>
+          <p>
+            Records required pursuant to 18 U.S.C. § 2257 and applicable
+            provisions of 28 C.F.R. Part 75 are maintained by:
+          </p>
+
+          <p>
+           <strong>{RECORDS_CUSTODIAN_NAME}</strong>
+            <br />
+            Custodian of Records
+            <br />
+            Spikeydee VIP
+            <br />
+            {RECORDS_CUSTODIAN_ADDRESS}
+          </p>
+        </div>
+      ),
+    },
+
+    {
+      heading: "Record-Keeping",
+      body: (
+        <p>
+          Required age and identity records for performers appearing in
+          covered productions are maintained by the Custodian of Records at
+          the location identified above and are available for inspection as
+          required by applicable law.
+        </p>
+      ),
+    },
+
+    {
+      heading: "Adults Only",
+      body: (
+        <p>
+          Spikeydee VIP is intended only for adults age 18 or older.
+        </p>
+      ),
+    },
+  ],
+},
 
   "content-removal": {
     title: "Content Removal & Complaints",
@@ -4384,38 +7286,188 @@ function LegalPage({ page, onBack, onLegal }: LegalPageProps) {
 /* =========================================================
    FOOTER
    ========================================================= */
-
 type SiteFooterProps = {
   onLegal: (page: LegalPageKey) => void;
 };
 
 function SiteFooter({ onLegal }: SiteFooterProps) {
   return (
-    <footer className="site-footer">
-      <div className="footer-brand">
-        <span>SPIKEYDEE</span>
-        <strong>VIP</strong>
-      </div>
+    <footer className="site-footer site-footer-premium">
+      <div className="footer-inner">
 
-      <div className="footer-links">
-        <button type="button" onClick={() => onLegal("terms")}>Terms</button>
-        <button type="button" onClick={() => onLegal("privacy")}>Privacy</button>
-        <button type="button" onClick={() => onLegal("2257")}>2257</button>
-        <button type="button" onClick={() => onLegal("content-removal")}>
-          Content Removal & Complaints
-        </button>
-        <button type="button" onClick={() => onLegal("billing")}>
-          Billing, Cancellation & Refunds
-        </button>
-        <button type="button" onClick={() => onLegal("support")}>Support</button>
-      </div>
+        <div className="footer-brand-premium">
+          <span>SPIKEYDEE</span>
+          <strong>VIP</strong>
+        </div>
 
-      <p>Adults 18+ only.</p>
-      <p>© 2026 Spikeydeevip. All rights reserved.</p>
+        <nav
+          className="footer-legal-grid"
+          aria-label="Legal and support links"
+        >
+          <button
+            type="button"
+            onClick={() => onLegal("2257")}
+          >
+            2257
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onLegal("terms")}
+          >
+            TERMS
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onLegal("privacy")}
+          >
+            PRIVACY POLICY
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onLegal("billing")}
+          >
+            REFUND POLICY
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onLegal("support")}
+          >
+            F.A.Q.'S
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onLegal("support")}
+          >
+            HELP
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onLegal("support")}
+          >
+            CUSTOMER SERVICE
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onLegal("billing")}
+          >
+            BILLING SUPPORT
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onLegal("content-removal")}
+          >
+            CONTENT REMOVAL
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onLegal("content-removal")}
+          >
+            COMPLAINTS
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onLegal("content-removal")}
+          >
+            DMCA
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onLegal("content-removal")}
+          >
+            TRUST &amp; SAFETY
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onLegal("support")}
+          >
+            WEBMASTER
+          </button>
+        </nav>
+
+        <div className="footer-compliance-copy">
+
+          <p>
+            For billing inquiries, membership cancellation,
+            or account support, please visit our{" "}
+            <button
+              type="button"
+              onClick={() => onLegal("billing")}
+            >
+              billing support page
+            </button>
+            .
+          </p>
+
+          <p>
+            All performers appearing in content available
+            through Spikeydee VIP are adults age 18 or older.
+          </p>
+
+          <p>
+            By accessing Spikeydee VIP, you confirm your
+            agreement to our{" "}
+            <button
+              type="button"
+              onClick={() => onLegal("terms")}
+            >
+              Terms of Service
+            </button>
+            ,{" "}
+            <button
+              type="button"
+              onClick={() => onLegal("privacy")}
+            >
+              Privacy Policy
+            </button>{" "}
+            and applicable site policies.
+          </p>
+
+          <p>
+            <button
+              type="button"
+              onClick={() => onLegal("2257")}
+            >
+              Click here for records required pursuant to
+              18 U.S.C. § 2257 Record-Keeping Requirements
+              Compliance Statement.
+            </button>
+          </p>
+
+        </div>
+
+        <div className="footer-copyright">
+          Copyright © 2026{" "}
+          <strong>Spikeydee VIP.</strong>{" "}
+          ALL RIGHTS RESERVED
+        </div>
+
+        <div className="footer-rta">
+          <img
+            src="/rta-logo.png"
+            alt="RTA Restricted to Adults"
+          />
+
+          <span>
+            RESTRICTED TO ADULTS 18+
+          </span>
+        </div>
+
+      </div>
     </footer>
   );
 }
-
 /* =========================================================
    APP
    ========================================================= */
@@ -4508,6 +7560,30 @@ function App() {
     );
 
   const [
+    passwordResetOpen,
+    setPasswordResetOpen,
+  ] =
+    useState(
+      false
+    );
+
+  const [
+    checkoutReturnOpen,
+    setCheckoutReturnOpen,
+  ] =
+    useState(
+      false
+    );
+
+  const [
+    checkoutReturnId,
+    setCheckoutReturnId,
+  ] =
+    useState<string | null>(
+      null
+    );
+
+  const [
     accessOpen,
     setAccessOpen,
   ] =
@@ -4542,7 +7618,12 @@ const [publicHeroSettings, setPublicHeroSettings] = useState<{
   loop_teaser: true,
 });
 
-const [publicHeroLoading, setPublicHeroLoading] = useState(true);
+const [, setPublicHeroLoading] = useState(false);
+const [homepageBanners, setHomepageBanners] = useState<HomepageBanner[]>([]);
+const [homepageBrands, setHomepageBrands] = useState<HomepageBrand[]>([]);
+const [homepageTiles, setHomepageTiles] = useState<HomepageTile[]>([]);
+const [activeBannerIndex, setActiveBannerIndex] = useState(0);
+const [activeBrandStartIndex, setActiveBrandStartIndex] = useState(0);
   const [
     favorites,
     setFavorites,
@@ -4597,9 +7678,137 @@ const [publicHeroLoading, setPublicHeroLoading] = useState(true);
     Boolean(membership.accessSessionId) &&
     (!membership.expiresAt || new Date(membership.expiresAt).getTime() > Date.now());
 
-  const accessActive = twoDayActive || fullMembershipActive;
+  const accessActive = Boolean(session) && (twoDayActive || fullMembershipActive);
 
   const adminAccess = profile?.is_admin === true;
+
+  /* =======================================================
+     PRIVATE STUDIO AUTH ROUTES
+     /studio-login and /studio-reset-password are intentionally
+     not linked from public navigation. Supabase authentication
+     remains the actual security layer.
+     ======================================================= */
+
+  useEffect(() => {
+    const syncStudioAuthRoute = () => {
+      const path = window.location.pathname;
+
+      if (path === "/checkout/return") {
+        setAuthOpen(false);
+        setPasswordResetOpen(false);
+
+        const urlCheckoutId =
+          new URLSearchParams(window.location.search)
+            .get("checkout_id");
+
+        let storedCheckoutId: string | null = null;
+
+        try {
+          const stored = sessionStorage.getItem(
+            PENDING_CHECKOUT_STORAGE_KEY
+          );
+
+          if (stored) {
+            const parsed = JSON.parse(stored) as {
+              checkoutId?: string;
+            };
+
+            storedCheckoutId =
+              parsed.checkoutId ?? null;
+          }
+        } catch {
+          storedCheckoutId = null;
+        }
+
+        setCheckoutReturnId(
+          urlCheckoutId ?? storedCheckoutId
+        );
+        setCheckoutReturnOpen(true);
+        return;
+      }
+
+      setCheckoutReturnOpen(false);
+
+      if (path === "/studio-reset-password") {
+        setAuthOpen(false);
+        setPasswordResetOpen(true);
+        return;
+      }
+
+      setPasswordResetOpen(false);
+
+      if (path === "/studio-login") {
+        if (session) {
+          setAuthOpen(false);
+          setViewMode("account");
+        } else {
+          setAuthOpen(true);
+        }
+      }
+    };
+
+    syncStudioAuthRoute();
+
+    window.addEventListener(
+      "popstate",
+      syncStudioAuthRoute
+    );
+
+    return () => {
+      window.removeEventListener(
+        "popstate",
+        syncStudioAuthRoute
+      );
+    };
+  }, [session]);
+
+  const closeStudioLogin = () => {
+    setAuthOpen(false);
+
+    if (
+      window.location.pathname ===
+      "/studio-login"
+    ) {
+      window.history.replaceState(
+        {},
+        "",
+        "/"
+      );
+
+      setViewMode("home");
+    }
+  };
+
+  const returnToStudioLogin = () => {
+    setPasswordResetOpen(false);
+    setAuthOpen(true);
+
+    window.history.replaceState(
+      {},
+      "",
+      "/studio-login"
+    );
+
+    setViewMode("home");
+  };
+
+  const closeCheckoutReturn = () => {
+    setCheckoutReturnOpen(false);
+    setCheckoutReturnId(null);
+
+    if (
+      window.location.pathname ===
+      "/checkout/return"
+    ) {
+      window.history.replaceState(
+        {},
+        "",
+        "/"
+      );
+    }
+
+    setViewMode("home");
+  };
 
   useEffect(() => {
     if (membership.level === "none") {
@@ -4623,22 +7832,64 @@ const [publicHeroLoading, setPublicHeroLoading] = useState(true);
     }
   }, [membership]);
 
-  const beginCcbillCheckout = (plan: PaidPlan, email: string): string | null => {
-    const checkoutUrl = CCBILL_CHECKOUT_URLS[plan];
+  const beginCcbillCheckout = async (
+    plan: PaidPlan,
+    email: string
+  ): Promise<string | null> => {
+    const normalizedEmail =
+      email.trim().toLowerCase();
 
-    sessionStorage.setItem(
-      PENDING_CHECKOUT_STORAGE_KEY,
-      JSON.stringify({ plan, email, startedAt: new Date().toISOString() })
-    );
+    const { data, error } =
+      await supabase.functions.invoke(
+        "ccbill-checkout-start",
+        {
+          body: {
+            plan,
+            email: normalizedEmail,
+          },
+        }
+      );
 
-    if (!checkoutUrl) {
+    if (error) {
       return (
-        `CCBill checkout for ${PLAN_LABELS[plan]} is not configured yet. ` +
-        `Add the corresponding VITE_CCBILL_* URL to .env.local after CCBill gives you the hosted payment-form link.`
+        "Could not start CCBill checkout: " +
+        error.message
       );
     }
 
-    window.location.assign(checkoutUrl);
+    const result = data as {
+      ok?: boolean;
+      checkoutId?: string;
+      checkoutUrl?: string;
+      message?: string;
+    } | null;
+
+    if (
+      !result?.ok ||
+      !result.checkoutId ||
+      !result.checkoutUrl
+    ) {
+      return (
+        result?.message ??
+        `CCBill checkout for ${PLAN_LABELS[plan]} is not configured yet.`
+      );
+    }
+
+    sessionStorage.setItem(
+      PENDING_CHECKOUT_STORAGE_KEY,
+      JSON.stringify({
+        checkoutId: result.checkoutId,
+        plan,
+        email: normalizedEmail,
+        startedAt:
+          new Date().toISOString(),
+      })
+    );
+
+    window.location.assign(
+      result.checkoutUrl
+    );
+
     return null;
   };
 
@@ -4708,12 +7959,30 @@ const [publicHeroLoading, setPublicHeroLoading] = useState(true);
       supabase.auth
         .onAuthStateChange(
           (
-            _event,
+            event,
             nextSession
           ) => {
             setSession(
               nextSession
             );
+
+            if (
+              event === "PASSWORD_RECOVERY"
+            ) {
+              setAuthOpen(false);
+              setPasswordResetOpen(true);
+
+              if (
+                window.location.pathname !==
+                "/studio-reset-password"
+              ) {
+                window.history.replaceState(
+                  {},
+                  "",
+                  "/studio-reset-password"
+                );
+              }
+            }
 
             if (
               !nextSession
@@ -4831,6 +8100,54 @@ const loadPublicHeroSettings = async () => {
 
   setPublicHeroLoading(false);
 };
+  const loadPublicHomepageBanners = async () => {
+    const { data, error } = await supabase
+      .from("homepage_banners")
+      .select("*")
+      .eq("is_published", true)
+      .order("sort_order", { ascending: true });
+
+    if (error) {
+      console.error("Could not load public homepage banners:", error);
+      setHomepageBanners([]);
+      return;
+    }
+
+    setHomepageBanners((data ?? []) as HomepageBanner[]);
+  };
+
+  const loadPublicHomepageBrands = async () => {
+    const { data, error } = await supabase
+      .from("homepage_brands")
+      .select("*")
+      .eq("is_published", true)
+      .order("sort_order", { ascending: true });
+
+    if (error) {
+      console.error("Could not load public homepage brands:", error);
+      setHomepageBrands([]);
+      return;
+    }
+
+    setHomepageBrands((data ?? []) as HomepageBrand[]);
+  };
+
+  const loadPublicHomepageTiles = async () => {
+    const { data, error } = await supabase
+      .from("homepage_tiles")
+      .select("*")
+      .eq("is_published", true)
+      .order("sort_order", { ascending: true });
+
+    if (error) {
+      console.error("Could not load public homepage tiles:", error);
+      setHomepageTiles([]);
+      return;
+    }
+
+    setHomepageTiles((data ?? []) as HomepageTile[]);
+  };
+
   const loadPublicCatalog =
     async () => {
       setCatalogLoading(
@@ -4914,7 +8231,97 @@ const loadPublicHeroSettings = async () => {
   useEffect(() => {
     void loadPublicCatalog();
     void loadPublicHeroSettings();
+    void loadPublicHomepageBanners();
+    void loadPublicHomepageBrands();
+    void loadPublicHomepageTiles();
   }, []);
+
+  useEffect(() => {
+    if (accessActive || adminAccess || homepageBanners.length <= 1) return;
+
+    const timer = window.setInterval(() => {
+      setActiveBannerIndex((current) =>
+        (current + 1) % homepageBanners.length
+      );
+    }, 6000);
+
+    return () => window.clearInterval(timer);
+  }, [accessActive, adminAccess, homepageBanners.length]);
+
+  useEffect(() => {
+    if (activeBannerIndex >= homepageBanners.length) {
+      setActiveBannerIndex(0);
+    }
+  }, [activeBannerIndex, homepageBanners.length]);
+
+  useEffect(() => {
+    const loadPaidMembership =
+      async () => {
+        if (!session?.user.id) {
+          return;
+        }
+
+        const { data, error } =
+          await supabase
+            .from("memberships")
+            .select(
+              "id, plan, status, expires_at, customer_email"
+            )
+            .eq(
+              "user_id",
+              session.user.id
+            )
+            .eq(
+              "status",
+              "active"
+            )
+            .order(
+              "created_at",
+              {
+                ascending: false,
+              }
+            )
+            .limit(1)
+            .maybeSingle();
+
+        if (error) {
+          console.error(
+            "Could not load paid membership:",
+            error
+          );
+          return;
+        }
+
+        if (!data) {
+          return;
+        }
+
+        const expiresAt =
+          data.expires_at ?? null;
+
+        if (
+          expiresAt &&
+          new Date(expiresAt).getTime() <=
+            Date.now()
+        ) {
+          return;
+        }
+
+        setMembership({
+          level:
+            data.plan as PaidPlan,
+          expiresAt,
+          accessSessionId:
+            data.id,
+          customerEmail:
+            data.customer_email ??
+            session.user.email ??
+            null,
+        });
+      };
+
+    void loadPaidMembership();
+  }, [session?.user.id]);
 
   /* =======================================================
      FAVORITES
@@ -5033,6 +8440,9 @@ const loadPublicHeroSettings = async () => {
           4
         )
       : fallbackPopular;
+
+  // Public marketing posters are stored independently in site_settings.
+  // Never derive unpaid homepage content from the videos table.
 
   const heroItem =
   publicCatalog.find(
@@ -5397,6 +8807,12 @@ const loadPublicHeroSettings = async () => {
     ) => {
       event.preventDefault();
 
+      if (!accessActive && !adminAccess) {
+        setSearchOpen(false);
+        setAccessOpen(true);
+        return;
+      }
+
       const value =
         searchValue.trim();
 
@@ -5478,6 +8894,49 @@ const loadPublicHeroSettings = async () => {
      RENDER
      ======================================================= */
 
+  const activeHomepageBanner =
+    homepageBanners.length > 0
+      ? homepageBanners[Math.min(activeBannerIndex, homepageBanners.length - 1)]
+      : null;
+
+  const showPreviousBanner = () => {
+    if (homepageBanners.length <= 1) return;
+    setActiveBannerIndex((current) =>
+      (current - 1 + homepageBanners.length) % homepageBanners.length
+    );
+  };
+
+  const showNextBanner = () => {
+    if (homepageBanners.length <= 1) return;
+    setActiveBannerIndex((current) =>
+      (current + 1) % homepageBanners.length
+    );
+  };
+
+  const visibleHomepageBrands = (() => {
+    if (homepageBrands.length <= 3) return homepageBrands;
+
+    return Array.from({ length: 3 }, (_, offset) => {
+      const index =
+        (activeBrandStartIndex + offset) % homepageBrands.length;
+      return homepageBrands[index];
+    });
+  })();
+
+  const showPreviousBrands = () => {
+    if (homepageBrands.length <= 3) return;
+    setActiveBrandStartIndex((current) =>
+      (current - 1 + homepageBrands.length) % homepageBrands.length
+    );
+  };
+
+  const showNextBrands = () => {
+    if (homepageBrands.length <= 3) return;
+    setActiveBrandStartIndex((current) =>
+      (current + 1) % homepageBrands.length
+    );
+  };
+
   return (
     <div className="app-shell">
       <SiteHeader
@@ -5521,14 +8980,6 @@ const loadPublicHeroSettings = async () => {
         }
         onAccount={
           showAccount
-        }
-        onStudio={
-          showStudio
-        }
-        onStudioLogin={() =>
-          setAuthOpen(
-            true
-          )
         }
         onLogout={() => {
           void logout();
@@ -5706,214 +9157,237 @@ const loadPublicHeroSettings = async () => {
         />
       ) : (
         <main>
-<section className="hero">
-  {heroItem && (
-    <>
-      {heroItem.thumbnailUrl ? (
-        <img
-          className="hero-background"
-          src={heroItem.thumbnailUrl}
-          alt=""
-          aria-hidden="true"
-        />
-      ) : null}
-
-      <div className="hero-overlay" />
-
-      <div className="hero-content">
-        <span className="hero-kicker">
-          SPIKEYDEE VIP ORIGINAL
-        </span>
-
-        <h1>
-          {publicHeroSettings.hero_title || heroItem.title}
-        </h1>
-
-        {(publicHeroSettings.hero_subtitle || heroItem.subtitle) && (
-          <p className="hero-subtitle">
-            {publicHeroSettings.hero_subtitle || heroItem.subtitle}
-          </p>
-        )}
-
-        <p className="hero-description">
-          {publicHeroSettings.hero_description ||
-            heroItem.description ||
-            "Watch the latest featured release from Spikeydee VIP."}
-        </p>
-
-        <div className="hero-meta">
-          {heroItem.duration && (
-            <span>{heroItem.duration}</span>
-          )}
-
-          {heroItem.category && (
-            <span>{heroItem.category}</span>
-          )}
-
-          <span>VIP</span>
+{!accessActive && !adminAccess ? (
+  <section className="public-home-slideshow" aria-label="Spikeydee VIP featured promotions">
+    {activeHomepageBanner ? (
+      <>
+        {homepageBanners.map((banner, index) => (
+          <img
+            key={banner.id}
+            className={`public-home-slide ${index === activeBannerIndex ? "is-active" : ""}`}
+            src={banner.image_url}
+            alt=""
+            aria-hidden="true"
+          />
+        ))}
+        <div className="public-home-slide-overlay" />
+        <div className="public-home-slide-content">
+          <span className="public-home-eyebrow">
+            {activeHomepageBanner.eyebrow || "SPIKEYDEE VIP"}
+          </span>
+          {activeHomepageBanner.title && <h1>{activeHomepageBanner.title}</h1>}
+          {activeHomepageBanner.subtitle && <p>{activeHomepageBanner.subtitle}</p>}
+          <button type="button" className="public-home-cta" onClick={() => setAccessOpen(true)}>
+            {activeHomepageBanner.button_text || "JOIN VIP"}
+          </button>
         </div>
-
-        <div className="hero-actions">
-          <button
-            type="button"
-            className="primary-button"
-            onClick={() => openItem(heroItem)}
-          >
-            {canWatchVideo(heroItem)
-              ? "▶ Watch Now"
-              : "🔒 View Premium"}
-          </button>
-
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={() => setAccessOpen(true)}
-          >
-            {accessActive && membership.level !== "none"
-              ? `${PLAN_LABELS[membership.level as PaidPlan]}`
-              : "Choose Membership"}
-          </button>
+        {homepageBanners.length > 1 && (
+          <>
+            <button type="button" className="public-home-arrow public-home-arrow-left" onClick={showPreviousBanner} aria-label="Previous banner">‹</button>
+            <button type="button" className="public-home-arrow public-home-arrow-right" onClick={showNextBanner} aria-label="Next banner">›</button>
+            <div className="public-home-dots" aria-label="Choose banner">
+              {homepageBanners.map((banner, index) => (
+                <button key={banner.id} type="button" className={index === activeBannerIndex ? "is-active" : ""} onClick={() => setActiveBannerIndex(index)} aria-label={`Show banner ${index + 1}`} />
+              ))}
+            </div>
+          </>
+        )}
+      </>
+    ) : (
+      <div className="public-home-empty-hero">
+        <div>
+          <span className="public-home-eyebrow">SPIKEYDEE VIP</span>
+          <button type="button" className="public-home-cta" onClick={() => setAccessOpen(true)}>JOIN VIP</button>
         </div>
       </div>
-    </>
-  )}
-
-  {!heroItem && !publicHeroLoading && (
-    <>
-      <div className="hero-overlay" />
-
-      <div className="hero-content">
-        <span className="hero-kicker">
-          SPIKEYDEE VIP ORIGINAL
-        </span>
-
-        <h1>
-          {publicHeroSettings.hero_title || "Premium. Private. Yours."}
-        </h1>
-
-        {publicHeroSettings.hero_subtitle && (
-          <p className="hero-subtitle">
-            {publicHeroSettings.hero_subtitle}
-          </p>
-        )}
-
-        <p className="hero-description">
-          {publicHeroSettings.hero_description ||
-            "Exclusive releases, original series, and premium VIP experiences."}
-        </p>
-
-        <div className="hero-actions">
-          <button
-            type="button"
-            className="primary-button"
-            onClick={() => setAccessOpen(true)}
-          >
-            Explore VIP
-          </button>
+    )}
+  </section>
+) : (
+  <section className="hero">
+    {heroItem ? (
+      <>
+        {heroItem.thumbnailUrl ? <img className="hero-background" src={heroItem.thumbnailUrl} alt="" aria-hidden="true" /> : null}
+        <div className="hero-overlay" />
+        <div className="hero-content">
+          <span className="hero-kicker">SPIKEYDEE VIP ORIGINAL</span>
+          <h1>{publicHeroSettings.hero_title || heroItem.title}</h1>
+          {(publicHeroSettings.hero_subtitle || heroItem.subtitle) && <p className="hero-subtitle">{publicHeroSettings.hero_subtitle || heroItem.subtitle}</p>}
+          <p className="hero-description">{publicHeroSettings.hero_description || heroItem.description || "Watch the latest featured release from Spikeydee VIP."}</p>
+          <div className="hero-meta">
+            {heroItem.duration && <span>{heroItem.duration}</span>}
+            {heroItem.category && <span>{heroItem.category}</span>}
+            <span>VIP</span>
+          </div>
+          <div className="hero-actions">
+            <button type="button" className="primary-button" onClick={() => openItem(heroItem)}>{canWatchVideo(heroItem) ? "▶ Watch Now" : "View Release"}</button>
+            <button type="button" className="secondary-button" onClick={() => setAccessOpen(true)}>{accessActive && membership.level !== "none" ? PLAN_LABELS[membership.level as PaidPlan] : "View Memberships"}</button>
+          </div>
         </div>
-      </div>
-    </>
-  )}
-</section>
+      </>
+    ) : (
+      <>
+        <div className="hero-overlay" />
+        <div className="hero-content">
+          <span className="hero-kicker">SPIKEYDEE VIP</span>
+          <h1>Premium. Private. Yours.</h1>
+        </div>
+      </>
+    )}
+  </section>
+)}
+
+          {!accessActive && !adminAccess && homepageBrands.length > 0 && (
+            <section
+              className="public-home-brands"
+              aria-label="Spikeydee VIP brands and series"
+            >
+              <div className="public-home-brands-heading">
+                <h2>Our Exclusive Series</h2>
+                <p>
+                  Get access to all these series and more by joining today!
+                </p>
+              </div>
+
+              <div className="public-home-brands-track-wrap">
+                {homepageBrands.length > 3 && (
+                  <button
+                    type="button"
+                    className="public-home-brand-arrow public-home-brand-arrow-left"
+                    onClick={showPreviousBrands}
+                    aria-label="Previous brands"
+                  >
+                    ‹
+                  </button>
+                )}
+
+                <div className="public-home-brands-track">
+                  {visibleHomepageBrands.map((brand) => (
+                    <button
+                      key={brand.id}
+                      type="button"
+                      className="public-home-brand"
+                      onClick={() => setAccessOpen(true)}
+                      aria-label={
+                        brand.name
+                          ? `View membership for ${brand.name}`
+                          : "View Spikeydee VIP membership"
+                      }
+                    >
+                      <img
+                        src={brand.logo_url}
+                        alt={brand.name ?? "Spikeydee VIP brand"}
+                      />
+                    </button>
+                  ))}
+                </div>
+
+                {homepageBrands.length > 3 && (
+                  <button
+                    type="button"
+                    className="public-home-brand-arrow public-home-brand-arrow-right"
+                    onClick={showNextBrands}
+                    aria-label="Next brands"
+                  >
+                    ›
+                  </button>
+                )}
+              </div>
+            </section>
+          )}
+
 
           <div className="content-wrapper">
-            {catalogLoading && (
-              <p
-                style={{
-                  textAlign:
-                    "center",
-                }}
-              >
-                Loading catalog...
+            {(accessActive || adminAccess) && catalogLoading && (
+              <p style={{ textAlign: "center" }}>
+                Loading homepage...
               </p>
             )}
 
-            <div id="featured">
-              <ContentRow
-                title="Featured"
-                items={
-                  featuredItems
-                }
-                onOpen={
-                  openItem
-                }
-                sectionId="featured"
-                canWatchVideo={
-                  canWatchVideo
-                }
-                favorites={
-                  favorites
-                }
-                onToggleFavorite={(
-                  item
-                ) => {
-                  void toggleFavorite(
-                    item
-                  );
-                }}
-                favoriteBusyIds={
-                  favoriteBusyIds
-                }
-              />
-            </div>
+            {/* PUBLIC HOMEPAGE — PROMOTIONAL GRID */}
+            {!accessActive && !adminAccess && (
+              <>
+                <section id="public-gallery" className="public-home-gallery">
+                  {homepageTiles.length > 0 ? (
+                    <div className="public-home-grid">
+                      {homepageTiles.map((tile) => (
+                        <button key={tile.id} type="button" className="public-home-tile" onClick={() => setAccessOpen(true)}>
+                          <img src={tile.image_url} alt={tile.title || "Spikeydee VIP collection"} />
+                          <span className="public-home-tile-shade" aria-hidden="true" />
+                          {(tile.title || tile.subtitle) && (
+                            <span className="public-home-tile-copy">
+                              {tile.title && <strong>{tile.title}</strong>}
+                              {tile.subtitle && <small>{tile.subtitle}</small>}
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="public-home-grid-empty">Add homepage photos from your Studio Dashboard.</div>
+                  )}
+                </section>
+                <section className="public-home-membership-cta">
+                  <div>
+                    <span className="section-kicker">MEMBERS ONLY</span>
+                    <h2>Unlock the complete Spikeydee VIP library.</h2>
+                    <p>Choose a membership to access the private member experience.</p>
+                  </div>
+                  <button type="button" className="public-home-cta" onClick={() => setAccessOpen(true)}>VIEW MEMBERSHIPS</button>
+                </section>
+              </>
+            )}
 
-            <div id="new">
-              <ContentRow
-                title="New Releases"
-                items={
-                  newReleaseItems
-                }
-                onOpen={
-                  openItem
-                }
-                sectionId="new"
-                canWatchVideo={
-                  canWatchVideo
-                }
-                favorites={
-                  favorites
-                }
-                onToggleFavorite={(
-                  item
-                ) => {
-                  void toggleFavorite(
-                    item
-                  );
-                }}
-                favoriteBusyIds={
-                  favoriteBusyIds
-                }
-              />
-            </div>
+            {/* =====================================================
+                PAID MEMBER / STUDIO VIDEO LIBRARY
+               ===================================================== */}
+            {(accessActive || adminAccess) && (
+              <div id="member-videos">
+                <div id="featured">
+                  <ContentRow
+                    title="Featured"
+                    items={featuredItems}
+                    onOpen={openItem}
+                    sectionId="featured"
+                    canWatchVideo={canWatchVideo}
+                    favorites={favorites}
+                    onToggleFavorite={(item) => {
+                      void toggleFavorite(item);
+                    }}
+                    favoriteBusyIds={favoriteBusyIds}
+                  />
+                </div>
 
-            <div id="popular">
-              <ContentRow
-                title="Popular"
-                items={
-                  popularItems
-                }
-                onOpen={
-                  openItem
-                }
-                sectionId="popular"
-                canWatchVideo={
-                  canWatchVideo
-                }
-                favorites={
-                  favorites
-                }
-                onToggleFavorite={(
-                  item
-                ) => {
-                  void toggleFavorite(
-                    item
-                  );
-                }}
-                favoriteBusyIds={
-                  favoriteBusyIds
-                }
-              />
-            </div>
+                <div id="new">
+                  <ContentRow
+                    title="New Releases"
+                    items={newReleaseItems}
+                    onOpen={openItem}
+                    sectionId="new"
+                    canWatchVideo={canWatchVideo}
+                    favorites={favorites}
+                    onToggleFavorite={(item) => {
+                      void toggleFavorite(item);
+                    }}
+                    favoriteBusyIds={favoriteBusyIds}
+                  />
+                </div>
+
+                <div id="popular">
+                  <ContentRow
+                    title="Popular"
+                    items={popularItems}
+                    onOpen={openItem}
+                    sectionId="popular"
+                    canWatchVideo={canWatchVideo}
+                    favorites={favorites}
+                    onToggleFavorite={(item) => {
+                      void toggleFavorite(item);
+                    }}
+                    favoriteBusyIds={favoriteBusyIds}
+                  />
+                </div>
+              </div>
+            )}
 
             {/* MEMBERSHIP OVERVIEW */}
 
@@ -5998,13 +9472,23 @@ const loadPublicHeroSettings = async () => {
         />
       )}
 
+      {checkoutReturnOpen && (
+        <CheckoutReturnModal
+          checkoutId={checkoutReturnId}
+          onActivated={setMembership}
+          onClose={closeCheckoutReturn}
+        />
+      )}
+
       {authOpen && (
         <AuthModal
-          onClose={() =>
-            setAuthOpen(
-              false
-            )
-          }
+          onClose={closeStudioLogin}
+        />
+      )}
+
+      {passwordResetOpen && (
+        <ResetPasswordModal
+          onComplete={returnToStudioLogin}
         />
       )}
 
