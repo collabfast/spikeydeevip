@@ -3131,7 +3131,7 @@ function AuthModal({
     }
 
     setLoading(false);
-    onClose();
+  
   };
 
   const handlePasswordReset = async () => {
