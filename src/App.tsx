@@ -933,7 +933,9 @@ function AccessModal({
         <span className="vip-quote-mark">“</span>
 
         <p>
-          Add a verified customer testimonial here.
+          SpikeyDeeVIP is easily one of my favorite memberships. The content
+    feels exclusive, the quality is great, and there’s always something
+    worth watching.
         </p>
 
         <footer>
@@ -946,7 +948,9 @@ function AccessModal({
         <span className="vip-quote-mark">“</span>
 
         <p>
-          Add a second verified customer testimonial here.
+          I joined for Spikey Dee and ended up loving the whole site.
+    Everything feels much more personal and premium than the usual
+    subscription sites.
         </p>
 
         <footer>
@@ -959,7 +963,9 @@ function AccessModal({
         <span className="vip-quote-mark">“</span>
 
         <p>
-          Add a third verified customer testimonial here.
+          The membership was completely worth it for me. Great content,
+    easy to use, and I love having access to the full collection
+    in one place.
         </p>
 
         <footer>
@@ -6481,21 +6487,63 @@ function SiteHeader({
           {menuOpen ? "×" : "☰"}
         </button>
 
-        <button
-          type="button"
-          className="brand"
-          onClick={() => {
-            closeMenu();
-            onHome();
-          }}
-        >
-         <img
-  src={spikeydeeVipLogo}
-  alt="Spikeydee VIP"
-  className="brand-logo-image"
-/>
-        </button>
+   <button
+  type="button"
+  className="brand"
+  onClick={() => {
+    closeMenu();
+    onHome();
+  }}
+>
+  <div className="brand-lockup">
+    <img
+      src={spikeydeeVipLogo}
+      alt="Spikeydee VIP"
+      className="brand-logo-image"
+    />
 
+    <div className="brand-studio-line">
+      <span>A</span>
+      <strong>BIMBOY</strong>
+      <span>STUDIO</span>
+    </div>
+  </div>
+</button>    
+<nav className="desktop-nav" aria-label="Desktop navigation">
+  <button
+    type="button"
+    onClick={() => {
+      closeMenu();
+      onHome();
+    }}
+  >
+    HOME
+  </button>
+
+  <button
+    type="button"
+    onClick={openVideos}
+  >
+    VIDEOS
+  </button>
+
+  <button
+    type="button"
+    onClick={openModels}
+  >
+    PERFORMERS
+  </button>
+
+  <button
+    type="button"
+    onClick={() => {
+      closeMenu();
+      onSubscribe();
+    }}
+  >
+    PLANS
+  </button>
+</nav>
 <div className="header-actions">
   {(accessActive || profile?.is_admin) && (
     <button
@@ -7623,7 +7671,7 @@ const [homepageBanners, setHomepageBanners] = useState<HomepageBanner[]>([]);
 const [homepageBrands, setHomepageBrands] = useState<HomepageBrand[]>([]);
 const [homepageTiles, setHomepageTiles] = useState<HomepageTile[]>([]);
 const [activeBannerIndex, setActiveBannerIndex] = useState(0);
-const [activeBrandStartIndex, setActiveBrandStartIndex] = useState(0);
+const [, setActiveBrandStartIndex] = useState(0);
   const [
     favorites,
     setFavorites,
@@ -8913,15 +8961,7 @@ const loadPublicHeroSettings = async () => {
     );
   };
 
-  const visibleHomepageBrands = (() => {
-    if (homepageBrands.length <= 3) return homepageBrands;
-
-    return Array.from({ length: 3 }, (_, offset) => {
-      const index =
-        (activeBrandStartIndex + offset) % homepageBrands.length;
-      return homepageBrands[index];
-    });
-  })();
+  
 
   const showPreviousBrands = () => {
     if (homepageBrands.length <= 3) return;
@@ -9171,16 +9211,48 @@ const loadPublicHeroSettings = async () => {
           />
         ))}
         <div className="public-home-slide-overlay" />
-        <div className="public-home-slide-content">
-          <span className="public-home-eyebrow">
-            {activeHomepageBanner.eyebrow || "SPIKEYDEE VIP"}
-          </span>
-          {activeHomepageBanner.title && <h1>{activeHomepageBanner.title}</h1>}
-          {activeHomepageBanner.subtitle && <p>{activeHomepageBanner.subtitle}</p>}
-          <button type="button" className="public-home-cta" onClick={() => setAccessOpen(true)}>
-            {activeHomepageBanner.button_text || "JOIN VIP"}
-          </button>
-        </div>
+
+<div className="public-home-slide-content">
+  <span className="public-home-eyebrow">
+    {activeHomepageBanner.eyebrow || "SPIKEYDEE VIP ORIGINALS"}
+  </span>
+
+  <h1>
+    {activeHomepageBanner.title || (
+      <>
+        EXCLUSIVE CONTENT.
+        <strong> ONLY ON SPIKEYDEE VIP.</strong>
+      </>
+    )}
+  </h1>
+
+  <p>
+    {activeHomepageBanner.subtitle ||
+      "Get instant access to the complete SpikeyDeeVIP collection, exclusive series, and new premium releases."}
+  </p>
+
+  <div className="public-home-hero-actions">
+    <button
+      type="button"
+      className="public-home-cta"
+      onClick={() => setAccessOpen(true)}
+    >
+      {activeHomepageBanner.button_text || "GET INSTANT ACCESS"} →
+    </button>
+
+    <button
+      type="button"
+      className="public-home-secondary-cta"
+      onClick={() =>
+        document
+          .getElementById("exclusive-series")
+          ?.scrollIntoView({ behavior: "smooth" })
+      }
+    >
+      SEE WHAT'S INSIDE
+    </button>
+  </div>
+</div>
         {homepageBanners.length > 1 && (
           <>
             <button type="button" className="public-home-arrow public-home-arrow-left" onClick={showPreviousBanner} aria-label="Previous banner">‹</button>
@@ -9235,18 +9307,50 @@ const loadPublicHeroSettings = async () => {
     )}
   </section>
 )}
+{!accessActive && !adminAccess && (
+  <section className="public-benefits-strip">
+    <div className="public-benefits-inner">
+      <div className="public-benefit-item">
+        <strong>2,000+</strong>
+        <span>RELEASES</span>
+      </div>
 
+      <div className="public-benefit-item">
+        <strong>NEW</strong>
+        <span>CONTENT REGULARLY</span>
+      </div>
+
+      <div className="public-benefit-item">
+        <strong>HD</strong>
+        <span>STREAMING</span>
+      </div>
+
+      <div className="public-benefit-item">
+        <strong>VIP</strong>
+        <span>PRIVATE MEMBERSHIP ACCESS</span>
+      </div>
+    </div>
+  </section>
+)}
           {!accessActive && !adminAccess && homepageBrands.length > 0 && (
             <section
+              id="exclusive-series"
               className="public-home-brands"
               aria-label="Spikeydee VIP brands and series"
             >
-              <div className="public-home-brands-heading">
-                <h2>Our Exclusive Series</h2>
-                <p>
-                  Get access to all these series and more by joining today!
-                </p>
-              </div>
+            <div className="public-home-brands-heading">
+  <span className="public-home-brands-kicker">
+   
+  </span>
+
+  <h2>
+    OUR EXCLUSIVE <strong>SERIES</strong>
+  </h2>
+
+  <p>
+    Explore original series available with VIP membership.
+  </p>
+</div>  
 
               <div className="public-home-brands-track-wrap">
                 {homepageBrands.length > 3 && (
@@ -9260,26 +9364,26 @@ const loadPublicHeroSettings = async () => {
                   </button>
                 )}
 
-                <div className="public-home-brands-track">
-                  {visibleHomepageBrands.map((brand) => (
-                    <button
-                      key={brand.id}
-                      type="button"
-                      className="public-home-brand"
-                      onClick={() => setAccessOpen(true)}
-                      aria-label={
-                        brand.name
-                          ? `View membership for ${brand.name}`
-                          : "View Spikeydee VIP membership"
-                      }
-                    >
-                      <img
-                        src={brand.logo_url}
-                        alt={brand.name ?? "Spikeydee VIP brand"}
-                      />
-                    </button>
-                  ))}
-                </div>
+                <div className="public-home-brands-grid">
+  {homepageBrands.map((brand) => (
+    <button
+      key={brand.id}
+      type="button"
+      className="public-home-brand-card"
+      onClick={() => setAccessOpen(true)}
+      aria-label={
+        brand.name
+          ? `View membership for ${brand.name}`
+          : "View Spikeydee VIP membership"
+      }
+    >
+      <img
+        src={brand.logo_url}
+        alt={brand.name ?? "Spikeydee VIP brand"}
+      />
+    </button>
+  ))}
+</div>
 
                 {homepageBrands.length > 3 && (
                   <button
@@ -9306,34 +9410,191 @@ const loadPublicHeroSettings = async () => {
             {/* PUBLIC HOMEPAGE — PROMOTIONAL GRID */}
             {!accessActive && !adminAccess && (
               <>
-                <section id="public-gallery" className="public-home-gallery">
-                  {homepageTiles.length > 0 ? (
-                    <div className="public-home-grid">
-                      {homepageTiles.map((tile) => (
-                        <button key={tile.id} type="button" className="public-home-tile" onClick={() => setAccessOpen(true)}>
-                          <img src={tile.image_url} alt={tile.title || "Spikeydee VIP collection"} />
-                          <span className="public-home-tile-shade" aria-hidden="true" />
-                          {(tile.title || tile.subtitle) && (
-                            <span className="public-home-tile-copy">
-                              {tile.title && <strong>{tile.title}</strong>}
-                              {tile.subtitle && <small>{tile.subtitle}</small>}
-                            </span>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="public-home-grid-empty">Add homepage photos from your Studio Dashboard.</div>
-                  )}
-                </section>
-                <section className="public-home-membership-cta">
-                  <div>
-                    <span className="section-kicker">MEMBERS ONLY</span>
-                    <h2>Unlock the complete Spikeydee VIP library.</h2>
-                    <p>Choose a membership to access the private member experience.</p>
-                  </div>
-                  <button type="button" className="public-home-cta" onClick={() => setAccessOpen(true)}>VIEW MEMBERSHIPS</button>
-                </section>
+                <section id="public-gallery" className="public-releases-section">
+  <div className="public-releases-heading">
+    <div>
+      <span className="public-releases-kicker">
+        MOST WATCHED
+      </span>
+
+      <h2>
+        POPULAR <strong>RELEASES</strong>
+      </h2>
+    </div>
+
+    <button
+      type="button"
+      className="public-releases-view-all"
+      onClick={() => setAccessOpen(true)}
+    >
+      VIEW ALL →
+    </button>
+  </div>
+
+  {homepageTiles.length > 0 ? (
+    <div className="public-releases-grid">
+      {homepageTiles.slice(0, 4).map((tile) => (
+        <button
+          key={tile.id}
+          type="button"
+          className="public-release-card"
+          onClick={() => setAccessOpen(true)}
+        >
+          <div className="public-release-image">
+            <img
+              src={tile.image_url}
+              alt={tile.title || "Spikeydee VIP release"}
+            />
+
+            <span className="public-release-badge">
+              VIP
+            </span>
+
+            <span className="public-release-play">
+              ▶
+            </span>
+          </div>
+
+          <div className="public-release-info">
+            <strong>
+              {tile.title || "Spikeydee VIP Exclusive"}
+            </strong>
+
+            <span>
+              {tile.subtitle || "Exclusive VIP release"}
+            </span>
+          </div>
+        </button>
+      ))}
+    </div>
+  ) : (
+    <div className="public-home-grid-empty">
+      Add homepage release artwork from your Studio Dashboard.
+    </div>
+  )}
+</section>
+<section className="public-performers-section">
+  <div className="public-performers-heading">
+    <span className="public-performers-kicker">
+      MEET THE TALENT
+    </span>
+
+    <h2>
+      FEATURED <strong>PERFORMERS</strong>
+    </h2>
+
+    <p>
+      Discover featured performers from SpikeyDeeVIP productions.
+    </p>
+  </div>
+
+  <div className="public-performers-grid">
+    <button
+      type="button"
+      className="public-performer-card"
+      onClick={() => setAccessOpen(true)}
+    >
+      <div className="public-performer-placeholder">
+        <span>SPIKEY DEE</span>
+      </div>
+
+      <div className="public-performer-info">
+        <strong>Spikey Dee</strong>
+        <span>FEATURED PERFORMER</span>
+      </div>
+    </button>
+
+    <button
+      type="button"
+      className="public-performer-card"
+      onClick={() => setAccessOpen(true)}
+    >
+      <div className="public-performer-placeholder">
+        <span>COMING SOON</span>
+      </div>
+
+      <div className="public-performer-info">
+        <strong>New Performer</strong>
+        <span>COMING SOON</span>
+      </div>
+    </button>
+
+    <button
+      type="button"
+      className="public-performer-card"
+      onClick={() => setAccessOpen(true)}
+    >
+      <div className="public-performer-placeholder">
+        <span>COMING SOON</span>
+      </div>
+
+      <div className="public-performer-info">
+        <strong>New Performer</strong>
+        <span>COMING SOON</span>
+      </div>
+    </button>
+
+    <button
+      type="button"
+      className="public-performer-card"
+      onClick={() => setAccessOpen(true)}
+    >
+      <div className="public-performer-placeholder">
+        <span>COMING SOON</span>
+      </div>
+
+      <div className="public-performer-info">
+        <strong>New Performer</strong>
+        <span>COMING SOON</span>
+      </div>
+    </button>
+  </div>
+</section>
+ <section className="public-home-membership-cta">
+  <div className="public-membership-cta-inner">
+
+    <span className="public-membership-kicker">
+      YOUR ALL-ACCESS PASS
+    </span>
+
+    <h2>
+      ONE MEMBERSHIP.
+      <strong> EVERYTHING UNLOCKED.</strong>
+    </h2>
+
+    <p>
+      Get unlimited access to the SpikeyDeeVIP library, exclusive
+      releases, featured performers, and new content.
+    </p>
+
+    <button
+      type="button"
+      className="public-membership-button"
+      onClick={() => setAccessOpen(true)}
+    >
+      JOIN SPIKEYDEE VIP →
+    </button>
+
+    <div className="public-membership-stats">
+      <div>
+        <strong>2,000+</strong>
+        <span>RELEASES</span>
+      </div>
+
+      <div>
+        <strong>VIP</strong>
+        <span>EXCLUSIVE CONTENT</span>
+      </div>
+
+      <div>
+        <strong>NEW</strong>
+        <span>CONTENT REGULARLY</span>
+      </div>
+    </div>
+
+  </div>
+</section>
+
               </>
             )}
 
