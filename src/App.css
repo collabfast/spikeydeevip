@@ -4346,9 +4346,9 @@ height: 238px;
   align-items: center;
   justify-content: center;
 
-  min-height: 140px;
+  min-height: 180px;
 
-  padding: 24px;
+  padding: 28px;
 
   overflow: hidden;
 
@@ -4419,9 +4419,9 @@ height: 238px;
 
   display: block;
 
-  width: auto;
-  max-width: 78%;
-  max-height: 74px;
+  width: 85%;
+  max-width: 220px;
+  height: auto;
 
   object-fit: contain;
 
@@ -5406,7 +5406,7 @@ height: 238px;
 }
 
 .public-home-brand-card {
-  width: min(280px, 100%);
+  width: min(360px, 100%);
 }
 
 .public-home-brands:has(.public-home-brand-card:only-child) {
@@ -5415,7 +5415,8 @@ height: 238px;
 
 .public-home-brands:has(.public-home-brand-card:only-child)
 .public-home-brands-grid {
-  max-width: 320px;
+  grid-template-columns: 1fr;
+  max-width: 360px;
   margin-left: 0;
 }
 /* =========================================================
