@@ -2474,14 +2474,13 @@ function VideoDetail({
                 }}
               />
             ) : (
-              <div className="video-player-placeholder">
-                <span className="video-player-button">▶</span>
-                <p>
-                  {playbackLoading
-                    ? "Authorizing secure Bunny Stream playback…"
-                    : playbackError || "Preparing secure video playback…"}
-                </p>
-              </div>
+  <div className="video-player-placeholder">
+  {playbackLoading ? (
+    <div className="video-buffer-spinner" />
+  ) : (
+    <p>{playbackError || "Preparing secure video playback..."}</p>
+  )}
+</div>
             )
           ) : canWatch && item.video ? (
             <video
@@ -3635,6 +3634,9 @@ type AccountPageProps = {
   favoritesCount:
     number;
 
+  membership:
+    MembershipState;
+
   onSaveDisplayName:
     (
       displayName:
@@ -3656,6 +3658,7 @@ function AccountPage({
   profile,
   profileLoading,
   favoritesCount,
+  membership,
   onSaveDisplayName,
   onStudio,
   onLogout,
@@ -3702,138 +3705,170 @@ function AccountPage({
       );
     };
 
+  const [accountNotice, setAccountNotice] = useState("");
+  const [passwordBusy, setPasswordBusy] = useState(false);
+
+  const membershipName =
+    membership.level !== "none"
+      ? PLAN_LABELS[membership.level as PaidPlan]
+      : "No active membership";
+
+  const membershipExpiration =
+    membership.level === "lifetime"
+      ? "Lifetime access"
+      : membership.expiresAt
+        ? new Date(membership.expiresAt).toLocaleDateString(undefined, {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          })
+        : "—";
+
+  const sendPasswordReset = async () => {
+    const email = session.user.email;
+    if (!email || passwordBusy) return;
+
+    setPasswordBusy(true);
+    setAccountNotice("");
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/member-reset-password`,
+    });
+
+    setPasswordBusy(false);
+    setAccountNotice(
+      error
+        ? error.message
+        : "Password reset email sent. Check your inbox to continue.",
+    );
+  };
+
   return (
     <main>
       <div className="content-wrapper">
         <section
           className="content-section"
-          style={{
-            paddingTop:
-              "70px",
-          }}
+          style={{ paddingTop: "70px", paddingBottom: "90px" }}
         >
           <div className="section-heading">
             <div>
-              <span className="section-kicker">
-                STUDIO ACCOUNT
-              </span>
-
-              <h2>
-                Account
-              </h2>
+              <span className="section-kicker">MEMBER ACCOUNT</span>
+              <h2>Account Settings</h2>
             </div>
 
-            <button
-              type="button"
-              className="view-all"
-              onClick={
-                onBack
-              }
-            >
+            <button type="button" className="view-all" onClick={onBack}>
               Back to Site
             </button>
           </div>
 
           {profileLoading ? (
-            <p>
-              Loading account...
-            </p>
+            <p>Loading account...</p>
           ) : (
-            <section
+            <div
               style={{
-                padding:
-                  "26px",
-
-                border:
-                  "1px solid var(--border)",
-
-                borderRadius:
-                  "18px",
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+                gap: "18px",
               }}
             >
-              <form
-                onSubmit={
-                  handleSubmit
-                }
-              >
-                <input
-                  value={
-                    displayName
-                  }
-                  onChange={(
-                    event
-                  ) =>
-                    setDisplayName(
-                      event.target.value
-                    )
-                  }
-                  placeholder="Display name"
-                />
-
-                <button
-                  type="submit"
-                  className="primary-button"
-                  disabled={
-                    saving
-                  }
-                  style={{
-                    marginLeft:
-                      "10px",
-                  }}
-                >
-                  {saving
-                    ? "Saving..."
-                    : "Save Profile"}
-                </button>
-              </form>
-
-              <p>
-                Email:{" "}
-                {
-                  session.user.email
-                }
-              </p>
-
-              <p>
-                Favorites:{" "}
-                {
-                  favoritesCount
-                }
-              </p>
-
-              <p>
-                Role:{" "}
-                {profile?.is_admin
-                  ? "Studio Administrator"
-                  : "Member"}
-              </p>
-
-              {profile?.is_admin && (
-                <button
-                  type="button"
-                  className="primary-button"
-                  onClick={
-                    onStudio
-                  }
-                >
-                  Open Studio
-                </button>
-              )}
-
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={
-                  onLogout
-                }
+              <section
                 style={{
-                  marginLeft:
-                    "10px",
+                  padding: "26px",
+                  border: "1px solid var(--border)",
+                  borderRadius: "18px",
+                  background: "var(--surface)",
                 }}
               >
-                Log Out
-              </button>
-            </section>
+                <span className="section-kicker">MEMBERSHIP</span>
+                <h3 style={{ margin: "10px 0 18px", fontSize: "26px" }}>
+                  {membershipName}
+                </h3>
+
+                <div style={{ display: "grid", gap: "14px" }}>
+                  <div>
+                    <div style={{ color: "var(--text-dim)", fontSize: "11px", letterSpacing: ".1em" }}>STATUS</div>
+                    <strong style={{ color: "var(--gold-2)" }}>
+                      {membership.level !== "none" ? "ACTIVE" : "INACTIVE"}
+                    </strong>
+                  </div>
+                  <div>
+                    <div style={{ color: "var(--text-dim)", fontSize: "11px", letterSpacing: ".1em" }}>ACCESS THROUGH</div>
+                    <strong>{membershipExpiration}</strong>
+                  </div>
+                  <div>
+                    <div style={{ color: "var(--text-dim)", fontSize: "11px", letterSpacing: ".1em" }}>EMAIL</div>
+                    <strong>{session.user.email}</strong>
+                  </div>
+                </div>
+              </section>
+
+              <section
+                style={{
+                  padding: "26px",
+                  border: "1px solid var(--border)",
+                  borderRadius: "18px",
+                  background: "var(--surface)",
+                }}
+              >
+                <span className="section-kicker">PROFILE</span>
+                <h3 style={{ margin: "10px 0 18px", fontSize: "26px" }}>Member Profile</h3>
+                <form onSubmit={handleSubmit}>
+                  <label htmlFor="member-display-name" style={{ display: "block", marginBottom: "8px", color: "var(--text-muted)", fontSize: "12px" }}>
+                    Display name
+                  </label>
+                  <input
+                    id="member-display-name"
+                    value={displayName}
+                    onChange={(event) => setDisplayName(event.target.value)}
+                    placeholder="Display name"
+                    style={{ width: "100%" }}
+                  />
+                  <button type="submit" className="primary-button" disabled={saving} style={{ width: "100%", marginTop: "12px" }}>
+                    {saving ? "Saving..." : "Save Profile"}
+                  </button>
+                </form>
+                <p style={{ margin: "18px 0 0", color: "var(--text-muted)" }}>
+                  Favorites: <strong style={{ color: "#fff" }}>{favoritesCount}</strong>
+                </p>
+              </section>
+
+              <section
+                style={{
+                  padding: "26px",
+                  border: "1px solid var(--border)",
+                  borderRadius: "18px",
+                  background: "var(--surface)",
+                }}
+              >
+                <span className="section-kicker">SECURITY & SUPPORT</span>
+                <h3 style={{ margin: "10px 0 18px", fontSize: "26px" }}>Account Actions</h3>
+                <div style={{ display: "grid", gap: "10px" }}>
+                  <button type="button" className="secondary-button" onClick={() => void sendPasswordReset()} disabled={passwordBusy} style={{ width: "100%" }}>
+                    {passwordBusy ? "Sending..." : "Change Password"}
+                  </button>
+                  <a
+                    className="secondary-button"
+                    href={`mailto:${BILLING_SUPPORT_EMAIL}`}
+                    style={{ width: "100%", boxSizing: "border-box", textAlign: "center", textDecoration: "none" }}
+                  >
+                    Billing Support
+                  </a>
+                  {profile?.is_admin && (
+                    <button type="button" className="primary-button" onClick={onStudio} style={{ width: "100%" }}>
+                      Open Studio
+                    </button>
+                  )}
+                  <button type="button" className="secondary-button" onClick={onLogout} style={{ width: "100%" }}>
+                    Log Out
+                  </button>
+                </div>
+                {accountNotice && (
+                  <p role="status" style={{ margin: "16px 0 0", color: "var(--text-muted)", lineHeight: 1.5 }}>
+                    {accountNotice}
+                  </p>
+                )}
+              </section>
+            </div>
           )}
         </section>
       </div>
@@ -4917,12 +4952,15 @@ const saveHeroSettings = async () => {
         },
       });
 
-      void upload.findPreviousUploads().then((previousUploads) => {
-        if (previousUploads.length > 0) {
-          upload.resumeFromPreviousUpload(previousUploads[0]);
-        }
-        upload.start();
-      });
+      // Always start this Bunny video as a fresh TUS upload.
+      // Reusing a previous browser fingerprint can point at an interrupted
+      // Bunny upload URL that is still locked (HTTP 423), especially after
+      // switching tabs or retrying an upload.
+      //
+      // The Edge Function has already created a fresh Bunny videoId and
+      // fresh signed upload credentials for this submission, so resuming an
+      // older upload URL here is both unnecessary and unsafe.
+      upload.start();
     });
   };
 
@@ -6517,6 +6555,7 @@ function SiteHeader({
   onMemberLogin,
   session,
   profile,
+  onAccount,
   onLogout,
   membership,
   accessActive,
@@ -6650,7 +6689,8 @@ function SiteHeader({
   <button
     type="button"
     className="signup-button"
-    onClick={onSubscribe}
+    onClick={session ? onAccount : onSubscribe}
+    title={session && accessActive ? membershipLabel : undefined}
     style={{
       width: "156px",
       height: "50px",
@@ -6658,7 +6698,7 @@ function SiteHeader({
       whiteSpace: "nowrap",
     }}
   >
-    {accessActive ? membershipLabel : "JOIN VIP"}
+    {session ? "ACCOUNT" : "JOIN VIP"}
   </button>
 
   {!session && (
@@ -6746,11 +6786,15 @@ function SiteHeader({
               className="primary-button"
               onClick={() => {
                 closeMenu();
-                onSubscribe();
+                if (session) {
+                  onAccount();
+                } else {
+                  onSubscribe();
+                }
               }}
               style={{ minHeight: "54px" }}
             >
-              {accessActive ? membershipLabel.toUpperCase() : "JOIN / UNLOCK VIP"}
+              {session ? "ACCOUNT" : "JOIN / UNLOCK VIP"}
             </button>
 
             {!session && (
@@ -7952,6 +7996,28 @@ const [, setActiveBrandStartIndex] = useState(0);
 
       setCheckoutReturnOpen(false);
 
+      if (path === "/studio") {
+        setAuthOpen(false);
+        setPasswordResetOpen(false);
+
+        if (session && profile?.is_admin) {
+          setViewMode("studio");
+        }
+
+        return;
+      }
+
+      if (path === "/account") {
+        setAuthOpen(false);
+        setPasswordResetOpen(false);
+
+        if (session) {
+          setViewMode("account");
+        }
+
+        return;
+      }
+
       if (path === "/studio-reset-password" || path === "/member-reset-password") {
         setAuthOpen(false);
         setPasswordResetOpen(true);
@@ -7983,7 +8049,7 @@ const [, setActiveBrandStartIndex] = useState(0);
         syncStudioAuthRoute
       );
     };
-  }, [session]);
+  }, [session, profile?.is_admin]);
 
   const closeStudioLogin = () => {
     setAuthOpen(false);
@@ -8649,20 +8715,8 @@ const loadPublicHeroSettings = async () => {
   const newReleaseItems =
     databaseContent.length >
     0
-      ? databaseContent.slice(
-          0,
-          4
-        )
+      ? databaseContent
       : fallbackNewReleases;
-
-  const popularItems =
-    databaseContent.length >
-    0
-      ? databaseContent.slice(
-          0,
-          4
-        )
-      : fallbackPopular;
 
   // Public marketing posters are stored independently in site_settings.
   // Never derive unpaid homepage content from the videos table.
@@ -8992,6 +9046,10 @@ const loadPublicHeroSettings = async () => {
         session &&
         profile?.is_admin
       ) {
+        if (window.location.pathname !== "/studio") {
+          window.history.pushState({}, "", "/studio");
+        }
+
         setViewMode(
           "studio"
         );
@@ -9008,6 +9066,10 @@ const loadPublicHeroSettings = async () => {
       if (
         session
       ) {
+        if (window.location.pathname !== "/account") {
+          window.history.pushState({}, "", "/account");
+        }
+
         setViewMode(
           "account"
         );
@@ -9340,6 +9402,9 @@ const loadPublicHeroSettings = async () => {
           favoritesCount={
             favorites.length
           }
+          membership={
+            membership
+          }
           onSaveDisplayName={
             saveDisplayName
           }
@@ -9454,37 +9519,27 @@ const loadPublicHeroSettings = async () => {
       </div>
     )}
   </section>
-) : (
-  <section className="hero">
-    {heroItem ? (
-      <>
-        {heroItem.thumbnailUrl ? <img className="hero-background" src={heroItem.thumbnailUrl} alt="" aria-hidden="true" /> : null}
-        <div className="hero-overlay" />
-        <div className="hero-content">
-          <span className="hero-kicker">SPIKEYDEE VIP ORIGINAL</span>
-          <h1>{publicHeroSettings.hero_title || heroItem.title}</h1>
-          {(publicHeroSettings.hero_subtitle || heroItem.subtitle) && <p className="hero-subtitle">{publicHeroSettings.hero_subtitle || heroItem.subtitle}</p>}
-          <p className="hero-description">{publicHeroSettings.hero_description || heroItem.description || "Watch the latest featured release from Spikeydee VIP."}</p>
-          <div className="hero-meta">
-            {heroItem.duration && <span>{heroItem.duration}</span>}
-            {heroItem.category && <span>{heroItem.category}</span>}
-            <span>VIP</span>
-          </div>
-          <div className="hero-actions">
-            <button type="button" className="primary-button" onClick={() => openItem(heroItem)}>{canWatchVideo(heroItem) ? "▶ Watch Now" : "View Release"}</button>
-            <button type="button" className="secondary-button" onClick={() => setAccessOpen(true)}>{accessActive && membership.level !== "none" ? PLAN_LABELS[membership.level as PaidPlan] : "View Memberships"}</button>
-          </div>
-        </div>
-      </>
-    ) : (
-      <>
-        <div className="hero-overlay" />
-        <div className="hero-content">
-          <span className="hero-kicker">SPIKEYDEE VIP</span>
-          <h1>Premium. Private. Yours.</h1>
-        </div>
-      </>
-    )}
+ ) : (
+  <section
+    className="public-home-slideshow"
+    aria-label="Spikeydee VIP member banner"
+    style={{ background: "#000" }}
+  >
+    {activeHomepageBanner?.image_url ? (
+      <img
+        className="public-home-slide is-active"
+        src={activeHomepageBanner.image_url}
+        alt=""
+        aria-hidden="true"
+      />
+    ) : heroItem?.thumbnailUrl ? (
+      <img
+        className="public-home-slide is-active"
+        src={heroItem.thumbnailUrl}
+        alt=""
+        aria-hidden="true"
+      />
+    ) : null}
   </section>
 )}
 {!accessActive && !adminAccess && (
@@ -9783,42 +9838,12 @@ const loadPublicHeroSettings = async () => {
                ===================================================== */}
             {(accessActive || adminAccess) && (
               <div id="member-videos">
-                <div id="featured">
-                  <ContentRow
-                    title="Featured"
-                    items={featuredItems}
-                    onOpen={openItem}
-                    sectionId="featured"
-                    canWatchVideo={canWatchVideo}
-                    favorites={favorites}
-                    onToggleFavorite={(item) => {
-                      void toggleFavorite(item);
-                    }}
-                    favoriteBusyIds={favoriteBusyIds}
-                  />
-                </div>
-
                 <div id="new">
                   <ContentRow
                     title="New Releases"
                     items={newReleaseItems}
                     onOpen={openItem}
                     sectionId="new"
-                    canWatchVideo={canWatchVideo}
-                    favorites={favorites}
-                    onToggleFavorite={(item) => {
-                      void toggleFavorite(item);
-                    }}
-                    favoriteBusyIds={favoriteBusyIds}
-                  />
-                </div>
-
-                <div id="popular">
-                  <ContentRow
-                    title="Popular"
-                    items={popularItems}
-                    onOpen={openItem}
-                    sectionId="popular"
                     canWatchVideo={canWatchVideo}
                     favorites={favorites}
                     onToggleFavorite={(item) => {
