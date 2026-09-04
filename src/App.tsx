@@ -6,7 +6,7 @@ import * as tus from "tus-js-client";
 import { supabase } from "./lib/supabase";
 import "./App.css";
 import spikeydeeVipLogo from "./assets/spikeydeevip-logo.png";
-
+import bimboyLogo from "./assets/bimboy-logo.png";
 /* =========================================================
    TYPES
    ========================================================= */
@@ -1281,7 +1281,6 @@ function AccessModal({
 
         </div>
 
-
         {/* =================================================
             MEMBERSHIP GRID
             ================================================= */}
@@ -1294,211 +1293,65 @@ function AccessModal({
           }}
         >
 
-         {/* BIMBOY ALL ACCESS — 1 YEAR — COMING SOON */}
+          {/* BIMBOY ALL ACCESS — LAUNCHES 10/10/26 */}
 
-<article
-  className="vip-access-card"
-  aria-disabled="true"
-  style={{
-    ...planCardStyle,
+          <article
+            className="vip-access-card bimboy-launch-card"
+            aria-disabled="true"
+            style={{
+              ...planCardStyle,
+              position: "relative",
+              overflow: "hidden",
+            }}
+          >
+            <div className="bimboy-logo-slot">
+              <img
+                src={bimboyLogo}
+                alt="Bimboy"
+                className="bimboy-card-logo"
+              />
+            </div>
 
-    border:
-      "1px solid rgba(231,187,69,.35)",
+            <div className="bimboy-all-access-text">
+  ALL ACCESS
+</div>
 
-    background:
-      "linear-gradient(180deg, rgba(231,187,69,.035), rgba(255,255,255,.006)), var(--surface)",
+            <h3 className="bimboy-plan-title">
+              1 Year Membership
+            </h3>
 
-    boxShadow:
-      "0 16px 38px rgba(0,0,0,.28)",
+            <div className="bimboy-plan-price">
+              $365.00
+            </div>
 
-    position:
-      "relative",
+            <div className="bimboy-plan-period">
+              $1 / day
+            </div>
 
-    overflow:
-      "hidden",
+            <p className="bimboy-plan-description">
+  One membership. Access to Bimboy and SpikeyDeeVIP for 1 year.
+</p>
 
-    filter:
-      "grayscale(.85)",
+            <div
+              className="bimboy-launch-date"
+              aria-label="Launching October 10, 2026"
+            >
+              <span>LAUNCHING</span>
+              <strong>10.10.26</strong>
+            </div>
 
-    opacity:
-      0.62,
-  }}
->
-
-  <span
-    style={{
-      alignSelf:
-        "flex-start",
-
-      padding:
-        "6px 9px",
-
-      border:
-        "1px solid rgba(231,187,69,.35)",
-
-      borderRadius:
-        "7px",
-
-      color:
-        "var(--gold-2)",
-
-      fontSize:
-        "9px",
-
-      fontWeight:
-        900,
-
-      letterSpacing:
-        ".12em",
-    }}
-  >
-    BIMBOY ALL ACCESS
-  </span>
+            <button
+              type="button"
+              className="bimboy-available-button"
+              disabled
+            >
+              AVAILABLE OCT 10
+            </button>
+          </article>
 
 
-  <h3
-    style={{
-      margin:
-        "18px 0 8px",
-
-      fontSize:
-        "24px",
-    }}
-  >
-    1 Year Membership
-  </h3>
 
 
-  <div
-    style={{
-      fontSize:
-        "38px",
-
-      fontWeight:
-        850,
-    }}
-  >
-    $365.00
-  </div>
-
-
-  <div
-    style={{
-      color:
-        "var(--text-muted)",
-
-      marginTop:
-        "2px",
-    }}
-  >
-    $1 / day
-  </div>
-
-
-  <p className="membership-card-disclosure">
-    One-time payment of $365.
-    Non-recurring. Full premium
-    catalog access.
-  </p>
-
-
-  <button
-    type="button"
-    className="vip-signup-continue"
-    disabled
-    style={{
-      width:
-        "100%",
-
-      marginTop:
-        "auto",
-
-      cursor:
-        "not-allowed",
-
-      background:
-        "#3b3b3b",
-
-      borderColor:
-        "#555",
-
-      color:
-        "#9a9a9a",
-
-      boxShadow:
-        "none",
-    }}
-  >
-    COMING SOON
-  </button>
-
-
-  <div
-    aria-hidden="true"
-    style={{
-      position:
-        "absolute",
-
-      inset:
-        0,
-
-      zIndex:
-        10,
-
-      display:
-        "flex",
-
-      alignItems:
-        "center",
-
-      justifyContent:
-        "center",
-
-      pointerEvents:
-        "none",
-    }}
-  >
-    <span
-      style={{
-        transform:
-          "rotate(-12deg)",
-
-        padding:
-          "10px 18px",
-
-        border:
-          "2px solid rgba(255,255,255,.8)",
-
-        borderRadius:
-          "8px",
-
-        background:
-          "rgba(0,0,0,.72)",
-
-        color:
-          "#fff",
-
-        fontSize:
-          "clamp(22px, 3vw, 36px)",
-
-        fontWeight:
-          900,
-
-        letterSpacing:
-          ".12em",
-
-        whiteSpace:
-          "nowrap",
-
-        boxShadow:
-          "0 10px 30px rgba(0,0,0,.45)",
-      }}
-    >
-      COMING SOON
-    </span>
-  </div>
-
-</article> 
 
           {/* 12 MONTH */}
 
@@ -1507,7 +1360,27 @@ function AccessModal({
             style={planCardStyle}
           >
 
-            <h3
+            <div className="spikeydeevip-badge-slot">
+
+
+              <img
+
+
+                src={spikeydeeVipLogo}
+
+
+                alt="SpikeyDee VIP Only"
+
+
+                className="spikeydeevip-only-badge"
+
+
+              />
+
+
+            </div>
+
+            <h3 className="membership-plan-title"
               style={{
                 margin:
                   "12px 0 8px",
@@ -1520,7 +1393,7 @@ function AccessModal({
             </h3>
 
 
-            <div
+            <div className="membership-plan-price"
               style={{
                 fontSize:
                   "38px",
@@ -1533,7 +1406,7 @@ function AccessModal({
             </div>
 
 
-            <div
+            <div className="membership-plan-period"
               style={{
                 color:
                   "var(--text-muted)",
@@ -1576,7 +1449,27 @@ function AccessModal({
             style={planCardStyle}
           >
 
-            <h3
+            <div className="spikeydeevip-badge-slot">
+
+
+              <img
+
+
+                src={spikeydeeVipLogo}
+
+
+                alt="SpikeyDee VIP Only"
+
+
+                className="spikeydeevip-only-badge"
+
+
+              />
+
+
+            </div>
+
+            <h3 className="membership-plan-title"
               style={{
                 margin:
                   "12px 0 8px",
@@ -1589,7 +1482,7 @@ function AccessModal({
             </h3>
 
 
-            <div
+            <div className="membership-plan-price"
               style={{
                 fontSize:
                   "38px",
@@ -1602,7 +1495,7 @@ function AccessModal({
             </div>
 
 
-            <div
+            <div className="membership-plan-period"
               style={{
                 color:
                   "var(--text-muted)",
@@ -1645,7 +1538,27 @@ function AccessModal({
             style={planCardStyle}
           >
 
-            <h3
+            <div className="spikeydeevip-badge-slot">
+
+
+              <img
+
+
+                src={spikeydeeVipLogo}
+
+
+                alt="SpikeyDee VIP Only"
+
+
+                className="spikeydeevip-only-badge"
+
+
+              />
+
+
+            </div>
+
+            <h3 className="membership-plan-title"
               style={{
                 margin:
                   "12px 0 8px",
@@ -1658,7 +1571,7 @@ function AccessModal({
             </h3>
 
 
-            <div
+            <div className="membership-plan-price"
               style={{
                 fontSize:
                   "38px",
@@ -1671,7 +1584,7 @@ function AccessModal({
             </div>
 
 
-            <div
+            <div className="membership-plan-period"
               style={{
                 color:
                   "var(--text-muted)",
@@ -1785,24 +1698,17 @@ function AccessModal({
         {notice && (
           <div
             role="status"
+            className="membership-checkout-notice"
             style={{
-              marginTop:
-                "20px",
-
-              padding:
-                "14px 16px",
-
-              border:
-                "1px solid rgba(255,255,255,.16)",
-
-              borderRadius:
-                "12px",
-
-              background:
-                "#111",
-
-              lineHeight:
-                1.6,
+              marginTop: "14px",
+              maxWidth: "760px",
+              padding: "10px 12px",
+              border: "1px solid rgba(239,68,68,.30)",
+              borderRadius: "10px",
+              background: "rgba(127,29,29,.16)",
+              color: "#f2b8b5",
+              fontSize: "12.5px",
+              lineHeight: 1.5,
             }}
           >
             {notice}

@@ -1468,7 +1468,7 @@ background: linear-gradient(
 
 .vip-access-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 18px;
   align-items: stretch;
 }
@@ -5563,4 +5563,461 @@ height: 238px;
   to {
     transform: rotate(360deg);
   }
+}
+/* START MEMBERSHIP BUTTON — GOLD HOVER */
+.membership-start-button:hover {
+  background: #d4af37 !important;
+  border-color: #d4af37 !important;
+  color: #000 !important;
+  cursor: pointer;
+}
+
+/* =========================================================
+   VIP ACCESS — START MEMBERSHIP GOLD HOVER
+   ========================================================= */
+
+.vip-access-card .primary-button {
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.vip-access-card .primary-button:hover {
+  background: linear-gradient(
+    180deg,
+    var(--gold-1) 0%,
+    var(--gold-2) 45%,
+    var(--gold-3) 100%
+  );
+  border-color: var(--gold-2);
+  color: #000;
+  box-shadow: 0 0 18px rgba(231, 187, 69, 0.28);
+  transform: translateY(-1px);
+}
+
+/* When START MEMBERSHIP is hovered, turn that membership card outline gold */
+.vip-access-card:has(.primary-button:hover) {
+  border-color: var(--gold-2) !important;
+  box-shadow:
+    0 0 0 1px rgba(231, 187, 69, 0.22),
+    0 0 22px rgba(231, 187, 69, 0.12);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+/* =========================================================
+   VIP MEMBERSHIP CARDS — POLISHED ALIGNMENT + HOVER
+   ========================================================= */
+
+.vip-access-card {
+  transition:
+    border-color 0.22s ease,
+    box-shadow 0.22s ease,
+    transform 0.22s ease;
+}
+
+.spikeydeevip-badge-slot {
+  height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 8px 0 10px;
+  flex: 0 0 58px;
+}
+
+.spikeydeevip-only-badge {
+  display: block;
+  width: auto;
+  max-width: 132px;
+  max-height: 42px;
+  object-fit: contain;
+  margin: 0 auto;
+}
+
+.membership-plan-title {
+  min-height: 58px;
+  display: flex;
+  align-items: flex-start;
+  margin-top: 0 !important;
+  margin-bottom: 8px !important;
+}
+
+.membership-plan-price {
+  line-height: 1;
+  margin-top: 0;
+}
+
+.membership-plan-period {
+  margin-top: 7px !important;
+  font-size: 14px;
+  color: var(--text-muted) !important;
+  line-height: 1.2;
+}
+
+.vip-access-card .membership-card-disclosure {
+  min-height: 86px;
+  margin-bottom: 16px;
+}
+
+.vip-access-card .primary-button {
+  width: 100%;
+  margin-top: auto;
+}
+
+.vip-access-card:has(.primary-button:hover) {
+  border-color: #e7bb45 !important;
+  box-shadow:
+    0 0 0 1px rgba(231, 187, 69, 0.38),
+    0 0 30px rgba(231, 187, 69, 0.24),
+    0 18px 42px rgba(0, 0, 0, 0.30);
+  transform: translateY(-2px);
+}
+
+.vip-access-card .primary-button:hover {
+  background: linear-gradient(
+    180deg,
+    #fff0a0 0%,
+    #e7bb45 42%,
+    #a87512 100%
+  );
+  border-color: #f0c95b;
+  color: #000;
+  box-shadow:
+    0 0 20px rgba(231, 187, 69, 0.38),
+    inset 0 1px 0 rgba(255,255,255,.45);
+}
+
+.membership-checkout-notice {
+  width: fit-content;
+  max-width: min(760px, 100%);
+}
+/* =========================================================
+   BIMBOY ALL ACCESS — 10.10.26 LAUNCH CARD
+   ========================================================= */
+
+.bimboy-launch-card {
+    width: 100%;
+  min-width: 0;
+  height: 100%;
+  grid-column: auto !important;
+  border-color: rgba(231, 187, 69, 0.28) !important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255, 0, 180, 0.08), transparent 34%),
+    linear-gradient(180deg, rgba(231, 187, 69, 0.025), rgba(255,255,255,.006)),
+    var(--surface) !important;
+  box-shadow: 0 16px 38px rgba(0,0,0,.28);
+  opacity: 1;
+  filter: none;
+}
+
+.bimboy-logo-slot {
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 2px 0 12px;
+}
+
+.bimboy-card-logo {
+  display: block;
+  width: min(190px, 86%);
+  max-height: 58px;
+  object-fit: contain;
+}
+
+.bimboy-access-pill {
+  align-self: flex-start;
+  padding: 7px 10px;
+  border: 1px solid rgba(231,187,69,.32);
+  border-radius: 7px;
+  background: rgba(255,255,255,.018);
+  color: #d9d4ca;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .14em;
+}
+
+.bimboy-plan-title {
+  margin: 18px 0 8px;
+  color: #f4f4f4;
+  font-size: 24px;
+  line-height: 1.08;
+}
+
+.bimboy-plan-price {
+  color: #fff;
+  font-size: 38px;
+  font-weight: 850;
+  line-height: 1;
+}
+
+.bimboy-plan-period {
+  margin-top: 7px;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.bimboy-plan-description {
+  margin: 18px 0 14px;
+  color: #aaa;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.bimboy-launch-date {
+  margin: 2px 0 18px;
+  padding: 14px 16px;
+  border: 1px solid rgba(231,187,69,.38);
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(231,187,69,.07), rgba(231,187,69,.018));
+  text-align: center;
+}
+
+.bimboy-launch-date span {
+  display: block;
+  color: var(--gold-2);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .22em;
+}
+
+.bimboy-launch-date strong {
+  display: block;
+  margin-top: 4px;
+  color: #fff;
+  font-size: 28px;
+  line-height: 1;
+  letter-spacing: .03em;
+}
+
+.bimboy-available-button {
+  width: 100%;
+  min-height: 46px;
+  margin-top: auto;
+  border: 1px solid rgba(231,187,69,.40);
+  border-radius: 10px;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,240,160,.10) 0%,
+      rgba(231,187,69,.11) 45%,
+      rgba(168,117,18,.10) 100%
+    );
+  color: #cdbb81;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .04em;
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+.bimboy-available-button:disabled {
+  opacity: 1;
+  color: #cdbb81;
+  -webkit-text-fill-color: #cdbb81;
+}
+
+/* =========================================================
+   FINAL VIP ACCESS GRID — 4 EQUAL MEMBERSHIP CARDS
+   Keep BIMBOY, 12 Month, 30 Day, and 2 Day equal on desktop.
+   ========================================================= */
+
+.vip-access-grid {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 16px !important;
+  align-items: stretch !important;
+}
+
+.vip-access-grid > .vip-access-card {
+  grid-column: auto !important;
+  grid-row: auto !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 100% !important;
+  align-self: stretch !important;
+}
+
+/* Tablet: 2 equal cards per row */
+@media (max-width: 800px) {
+  .vip-access-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+/* Phone: 1 card per row */
+@media (max-width: 560px) {
+  .vip-access-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* =========================================================
+   BIMBOY CARD — COMPACT PREMIUM POLISH
+   Keeps all four membership cards the same grid size.
+   ========================================================= */
+
+.bimboy-launch-card {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  padding: 24px !important;
+}
+
+.bimboy-logo-slot {
+  min-height: 48px !important;
+  height: 48px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin: 0 0 10px !important;
+  flex: 0 0 48px !important;
+}
+
+.bimboy-card-logo {
+  display: block !important;
+  width: auto !important;
+  max-width: 150px !important;
+  max-height: 46px !important;
+  object-fit: contain !important;
+}
+
+.bimboy-access-pill {
+  align-self: flex-start !important;
+  margin: 0 0 14px !important;
+  padding: 5px 8px !important;
+  border: 1px solid rgba(231,187,69,.30) !important;
+  border-radius: 7px !important;
+  background: rgba(231,187,69,.025) !important;
+  color: #d9d4ca !important;
+  font-size: 8px !important;
+  font-weight: 900 !important;
+  letter-spacing: .14em !important;
+}
+
+.bimboy-plan-title {
+  margin: 0 0 7px !important;
+  min-height: 0 !important;
+  color: #f4f4f4 !important;
+  font-size: 22px !important;
+  line-height: 1.08 !important;
+}
+
+.bimboy-plan-price {
+  margin: 0 !important;
+  color: #fff !important;
+  font-size: 36px !important;
+  font-weight: 850 !important;
+  line-height: 1 !important;
+}
+
+.bimboy-plan-period {
+  margin-top: 5px !important;
+  color: var(--text-muted) !important;
+  font-size: 13px !important;
+  line-height: 1.2 !important;
+}
+
+.bimboy-plan-description {
+  margin: 16px 0 16px !important;
+  min-height: 0 !important;
+  color: #aaa !important;
+  font-size: 11.5px !important;
+  line-height: 1.5 !important;
+}
+
+.bimboy-launch-date {
+  margin: 0 0 12px !important;
+  padding: 10px 12px !important;
+  min-height: 70px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border: 1px solid rgba(231,187,69,.38) !important;
+  border-radius: 10px !important;
+  background:
+    linear-gradient(180deg, rgba(231,187,69,.055), rgba(231,187,69,.012)) !important;
+  text-align: center !important;
+}
+
+.bimboy-launch-date span {
+  display: block !important;
+  color: var(--gold-2) !important;
+  font-size: 8px !important;
+  font-weight: 900 !important;
+  letter-spacing: .20em !important;
+}
+
+.bimboy-launch-date strong {
+  display: block !important;
+  margin-top: 4px !important;
+  color: #fff !important;
+  font-size: 24px !important;
+  line-height: 1 !important;
+  letter-spacing: .03em !important;
+}
+
+.bimboy-available-button {
+  width: 100% !important;
+  min-height: 42px !important;
+  margin-top: auto !important;
+  border: 1px solid rgba(231,187,69,.45) !important;
+  border-radius: 9px !important;
+  background: transparent !important;
+  color: #d8c17f !important;
+  -webkit-text-fill-color: #d8c17f !important;
+  font-size: 11px !important;
+  font-weight: 900 !important;
+  letter-spacing: .055em !important;
+  cursor: not-allowed !important;
+  opacity: 1 !important;
+}
+
+/* Keep every plan card stretched to the same row height. */
+.vip-access-grid {
+  align-items: stretch !important;
+}
+
+.vip-access-grid > .vip-access-card {
+  height: 100% !important;
+  align-self: stretch !important;
+}
+/* BIMBOY — ALL ACCESS BRAND LOCKUP */
+
+.bimboy-all-access-text {
+  margin: -2px 0 18px;
+  text-align: center;
+
+  font-size: 20px;
+  font-weight: 1000;
+  line-height: 1;
+  letter-spacing: 0.10em;
+  font-style: italic;
+
+  background: linear-gradient(
+    180deg,
+    #ff40df 0%,
+    #ff1493 35%,
+    #ff7a00 68%,
+    #ffd21c 100%
+  );
+
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+
+  -webkit-text-stroke: 1px rgba(255, 255, 255, 0.55);
+
+  filter:
+    drop-shadow(0 1px 0 #000)
+    drop-shadow(0 2px 0 #7a005f)
+    drop-shadow(0 0 6px rgba(255, 0, 190, 0.45));
 }
