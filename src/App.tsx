@@ -187,7 +187,7 @@ type VideoFormState = {
    CONSTANTS
    ========================================================= */
 
-const LIFETIME_PRICE = "$225.00";
+const LIFETIME_PRICE = "$275.00";
 const TWELVE_MONTH_MONTHLY_EQUIVALENT = "$9.99";
 const TWELVE_MONTH_TOTAL = "$119.88";
 const THIRTY_DAY_PRICE = "$29.99";
@@ -218,19 +218,19 @@ const MAX_HOMEPAGE_BANNERS = 6;
 const MAX_HOMEPAGE_TILES = 6;
 const MAX_HOMEPAGE_BRANDS = 12;
 
-/*
-  Replace these placeholders with your real business details before launch.
-  Keeping them centralized makes the legal pages easy to update later.
-*/
 const SUPPORT_EMAIL = "spikeydeevip@gmail.com";
 const BILLING_SUPPORT_EMAIL = "consumersupport@ccbill.com";
 const BILLING_SUPPORT_PHONE = "888-596-9279";
 const COMPLAINTS_EMAIL = "spikeydeevip@gmail.com";
 const BUSINESS_NAME = "Spikeydee VIP";
-const BUSINESS_ADDRESS = "[ADD BUSINESS ADDRESS]";
+const BUSINESS_PRINCIPAL = "Noah Wayne Curd";
+const BUSINESS_CITY = "Las Vegas";
+const BUSINESS_STATE = "Nevada";
+const BUSINESS_COUNTRY = "United States";
 const RECORDS_CUSTODIAN_NAME = "Noah Wayne Curd";
-const RECORDS_CUSTODIAN_ADDRESS = "[6605 Grand Montecito Pkwy, Suite 100, Las Vegas, NV 89149, USA]";
-const BILLING_DESCRIPTOR = "[ADD CARD STATEMENT DESCRIPTOR]";
+const RECORDS_CUSTODIAN_ADDRESS = "6605 Grand Montecito Pkwy, Suite 100, Las Vegas, NV 89149, USA";
+const CCBILL_COMPLAINT_FORM =
+  "https://www.ccbillcomplaintform.com/ccbill/form/CCBillContentRemovalRequest1/formperma/sBK2jfIoZWAFw2hRRt5Rv2PQncscFzpvOH6bPcwopas";
 
 // Bunny Stream CDN hostname for this video library. This is public delivery
 // configuration, not a secret API credential.
@@ -530,7 +530,7 @@ function loadAgeVerification() {
 }
 
 /* =========================================================
-   VIP ACCESS / CHECKOUT PLACEHOLDER
+   VIP ACCESS / CHECKOUT
    ========================================================= */
 
 /* =========================================================
@@ -1294,122 +1294,211 @@ function AccessModal({
           }}
         >
 
-          {/* LIFETIME */}
+         {/* BIMBOY ALL ACCESS — 1 YEAR — COMING SOON */}
 
-          <article
-            className="vip-access-card"
-            style={{
-              ...planCardStyle,
+<article
+  className="vip-access-card"
+  aria-disabled="true"
+  style={{
+    ...planCardStyle,
 
-              border:
-                "1px solid rgba(231,187,69,.62)",
+    border:
+      "1px solid rgba(231,187,69,.35)",
 
-              background:
-                "linear-gradient(180deg, rgba(231,187,69,.055), rgba(255,255,255,.008)), var(--surface)",
+    background:
+      "linear-gradient(180deg, rgba(231,187,69,.035), rgba(255,255,255,.006)), var(--surface)",
 
-              boxShadow:
-                "0 16px 38px rgba(0,0,0,.28)",
-            }}
-          >
+    boxShadow:
+      "0 16px 38px rgba(0,0,0,.28)",
 
-            <span
-              style={{
-                alignSelf:
-                  "flex-start",
+    position:
+      "relative",
 
-                padding:
-                  "6px 9px",
+    overflow:
+      "hidden",
 
-                border:
-                  "1px solid rgba(231,187,69,.5)",
+    filter:
+      "grayscale(.85)",
 
-                borderRadius:
-                  "7px",
+    opacity:
+      0.62,
+  }}
+>
 
-                color:
-                  "var(--gold-2)",
+  <span
+    style={{
+      alignSelf:
+        "flex-start",
 
-                fontSize:
-                  "9px",
+      padding:
+        "6px 9px",
 
-                fontWeight:
-                  900,
+      border:
+        "1px solid rgba(231,187,69,.35)",
 
-                letterSpacing:
-                  ".12em",
-              }}
-            >
-              BEST VALUE
-            </span>
+      borderRadius:
+        "7px",
 
+      color:
+        "var(--gold-2)",
 
-            <h3
-              style={{
-                margin:
-                  "18px 0 8px",
+      fontSize:
+        "9px",
 
-                fontSize:
-                  "24px",
-              }}
-            >
-              Lifetime Membership
-            </h3>
+      fontWeight:
+        900,
 
-
-            <div
-              style={{
-                fontSize:
-                  "38px",
-
-                fontWeight:
-                  850,
-              }}
-            >
-              {LIFETIME_PRICE}
-            </div>
+      letterSpacing:
+        ".12em",
+    }}
+  >
+    BIMBOY ALL ACCESS
+  </span>
 
 
-            <div
-              style={{
-                color:
-                  "var(--text-muted)",
+  <h3
+    style={{
+      margin:
+        "18px 0 8px",
 
-                marginTop:
-                  "2px",
-              }}
-            >
-              / lifetime
-            </div>
-
-
-            <p className="membership-card-disclosure">
-              One-time payment of
-              $225.00. Non-recurring.
-              Full premium catalog access.
-            </p>
+      fontSize:
+        "24px",
+    }}
+  >
+    1 Year Membership
+  </h3>
 
 
-            <button
-              type="button"
-              className="vip-signup-continue"
-              onClick={() =>
-                choosePlan(
-                  "lifetime"
-                )
-              }
-              style={{
-                width:
-                  "100%",
+  <div
+    style={{
+      fontSize:
+        "38px",
 
-                marginTop:
-                  "auto",
-              }}
-            >
-              {checkoutBusyPlan === "lifetime" ? "OPENING CCBILL…" : "START MEMBERSHIP"}
-            </button>
+      fontWeight:
+        850,
+    }}
+  >
+    $365.00
+  </div>
 
-          </article>
 
+  <div
+    style={{
+      color:
+        "var(--text-muted)",
+
+      marginTop:
+        "2px",
+    }}
+  >
+    $1 / day
+  </div>
+
+
+  <p className="membership-card-disclosure">
+    One-time payment of $365.
+    Non-recurring. Full premium
+    catalog access.
+  </p>
+
+
+  <button
+    type="button"
+    className="vip-signup-continue"
+    disabled
+    style={{
+      width:
+        "100%",
+
+      marginTop:
+        "auto",
+
+      cursor:
+        "not-allowed",
+
+      background:
+        "#3b3b3b",
+
+      borderColor:
+        "#555",
+
+      color:
+        "#9a9a9a",
+
+      boxShadow:
+        "none",
+    }}
+  >
+    COMING SOON
+  </button>
+
+
+  <div
+    aria-hidden="true"
+    style={{
+      position:
+        "absolute",
+
+      inset:
+        0,
+
+      zIndex:
+        10,
+
+      display:
+        "flex",
+
+      alignItems:
+        "center",
+
+      justifyContent:
+        "center",
+
+      pointerEvents:
+        "none",
+    }}
+  >
+    <span
+      style={{
+        transform:
+          "rotate(-12deg)",
+
+        padding:
+          "10px 18px",
+
+        border:
+          "2px solid rgba(255,255,255,.8)",
+
+        borderRadius:
+          "8px",
+
+        background:
+          "rgba(0,0,0,.72)",
+
+        color:
+          "#fff",
+
+        fontSize:
+          "clamp(22px, 3vw, 36px)",
+
+        fontWeight:
+          900,
+
+        letterSpacing:
+          ".12em",
+
+        whiteSpace:
+          "nowrap",
+
+        boxShadow:
+          "0 10px 30px rgba(0,0,0,.45)",
+      }}
+    >
+      COMING SOON
+    </span>
+  </div>
+
+</article> 
 
           {/* 12 MONTH */}
 
@@ -3098,7 +3187,7 @@ function CheckoutReturnModal({
 }
 
 /* =========================================================
-   STUDIO LOGIN
+   MEMBER LOGIN
    ========================================================= */
 
 type AuthModalProps = {
@@ -3148,7 +3237,7 @@ function AuthModal({
 
     if (!normalizedEmail) {
       setErrorMessage(
-        "Enter your Studio admin email above, then select Reset password."
+        "Enter your member email above, then select Reset password."
       );
       return;
     }
@@ -3161,7 +3250,7 @@ function AuthModal({
     setResetLoading(true);
 
     const redirectTo =
-      `${window.location.origin}/studio-reset-password`;
+      `${window.location.origin}/member-reset-password`;
 
     const { error } = await supabase.auth.resetPasswordForEmail(
       normalizedEmail,
@@ -3198,7 +3287,7 @@ function AuthModal({
       <section
         role="dialog"
         aria-modal="true"
-        aria-label="Studio Login"
+        aria-label="Member Login"
         style={{
           width: "min(430px,100%)",
           padding: "28px",
@@ -3208,11 +3297,11 @@ function AuthModal({
         }}
       >
         <span className="section-kicker">
-          PRIVATE ADMIN
+          MEMBER ACCESS
         </span>
 
         <h2>
-          Studio Login
+          Member Login
         </h2>
 
         <form onSubmit={handleSubmit}>
@@ -6405,6 +6494,7 @@ type SiteHeaderProps = {
   onHome: () => void;
   onLegal: (page: LegalPageKey) => void;
   onSubscribe: () => void;
+  onMemberLogin: () => void;
   session: Session | null;
   profile: Profile | null;
   onAccount: () => void;
@@ -6424,6 +6514,7 @@ function SiteHeader({
   onHome,
   onLegal,
   onSubscribe,
+  onMemberLogin,
   session,
   profile,
   onLogout,
@@ -6560,9 +6651,37 @@ function SiteHeader({
     type="button"
     className="signup-button"
     onClick={onSubscribe}
+    style={{
+      width: "156px",
+      height: "50px",
+      flexShrink: 0,
+      whiteSpace: "nowrap",
+    }}
   >
     {accessActive ? membershipLabel : "JOIN VIP"}
   </button>
+
+  {!session && (
+    <button
+      type="button"
+      className="secondary-button"
+      onClick={onMemberLogin}
+      style={{
+        width: "156px",
+        height: "50px",
+        flexShrink: 0,
+        whiteSpace: "nowrap",
+        padding: "0 12px",
+        fontSize: "13px",
+        fontWeight: 800,
+        letterSpacing: ".04em",
+        color: "var(--gold-2)",
+        borderColor: "var(--gold-2)",
+      }}
+    >
+      MEMBER LOGIN
+    </button>
+  )}
 </div>
       </div>
 
@@ -6633,6 +6752,20 @@ function SiteHeader({
             >
               {accessActive ? membershipLabel.toUpperCase() : "JOIN / UNLOCK VIP"}
             </button>
+
+            {!session && (
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => {
+                  closeMenu();
+                  onMemberLogin();
+                }}
+                style={{ minHeight: "54px" }}
+              >
+                MEMBER LOGIN
+              </button>
+            )}
           </div>
 
           <div
@@ -6841,7 +6974,7 @@ const legalCopy: Record<LegalPageKey, LegalPageContent> = {
     title: "Terms of Service",
     kicker: "LEGAL",
     intro:
-      "These development terms establish the basic rules for accessing Spikeydee VIP. Replace or revise them with counsel-reviewed production terms before accepting live payments.",
+      "These Terms of Service govern access to and use of Spikeydee VIP and its membership services.",
     sections: [
       {
         heading: "Adults Only",
@@ -6857,12 +6990,13 @@ const legalCopy: Record<LegalPageKey, LegalPageContent> = {
         heading: "Access Plans",
         body: (
           <p>
-            Spikeydee VIP offers a $225.00 non-recurring Lifetime Membership, a
-            12 Month Membership billed as one payment of $119.88, a 30 Day
-            Membership billed at $29.99 every 30 days until cancelled, and a
-            promotional 2 Day Pass billed at $0.99 for the first 2 days and then
-            $32.99 every 30 days until cancelled. Individual videos are not sold
-            separately.
+            Spikeydee VIP offers a {LIFETIME_PRICE} non-recurring Lifetime
+            Membership, a 12 Month Membership billed as one payment of
+            {TWELVE_MONTH_TOTAL}, a 30 Day Membership billed at
+            {THIRTY_DAY_PRICE} every 30 days until cancelled, and a promotional
+            2 Day Pass billed at {TWO_DAY_PRICE} for the first 2 days and then
+            {TWO_DAY_RENEWAL_PRICE} every 30 days until cancelled. Individual
+            videos are not sold separately.
           </p>
         ),
       },
@@ -6881,10 +7015,10 @@ const legalCopy: Record<LegalPageKey, LegalPageContent> = {
         heading: "Account and Studio Access",
         body: (
           <p>
-            Public viewers do not receive studio publishing privileges. Studio
-            authentication and administrative tools are reserved for authorized
-            administrators. Attempts to bypass access controls or use another
-            person's credentials may result in access being blocked.
+            Public viewers do not receive studio publishing privileges.
+            Administrative tools are reserved for authorized administrators.
+            Attempts to bypass access controls or use another person's
+            credentials may result in access being blocked or terminated.
           </p>
         ),
       },
@@ -6893,8 +7027,7 @@ const legalCopy: Record<LegalPageKey, LegalPageContent> = {
         body: (
           <p>
             The catalog, access tiers, features, and availability of content may
-            change. Material billing terms will be presented before a live
-            purchase is completed.
+            change. Applicable billing terms are presented before purchase.
           </p>
         ),
       },
@@ -6905,39 +7038,36 @@ const legalCopy: Record<LegalPageKey, LegalPageContent> = {
     title: "Privacy Policy",
     kicker: "PRIVACY",
     intro:
-      "This development policy describes the data flows currently used by the site and identifies disclosures that must be finalized before production launch.",
+      "This Privacy Policy explains how Spikeydee VIP handles information used to provide, secure, support, and bill for the service.",
     sections: [
       {
-        heading: "Browser Storage",
+        heading: "Information We Collect",
         body: (
           <p>
-            The site currently uses browser storage and a first-party cookie to
-            remember age-gate confirmation. During development, browser storage
-            is also used to simulate VIP access. Production paid access will not
-            rely on browser storage as the source of truth.
+            We may collect account and contact information, membership and access
+            information, support communications, device and browser information,
+            and information reasonably necessary to operate and secure the
+            service.
           </p>
         ),
       },
       {
-        heading: "Studio Authentication and Application Data",
+        heading: "Cookies and Browser Storage",
         body: (
           <p>
-            Supabase is used for authorized studio authentication and application
-            data such as profiles, catalog records, and access-related metadata.
-            The final production policy should describe the categories of data
-            retained, retention periods, security practices, and deletion
-            procedures actually used.
+            Spikeydee VIP uses cookies and browser storage for functions such as
+            age-gate confirmation, session continuity, preferences, and
+            access-related functionality.
           </p>
         ),
       },
       {
-        heading: "Payment Information",
+        heading: "Payments",
         body: (
           <p>
-            When live billing is enabled, payment-card information should be
-            entered directly into the approved payment processor's secure
-            checkout. This React application should not store full card numbers
-            or card-security codes.
+            Payments are processed through CCBill. Payment-card information is
+            entered through the payment processor's checkout rather than stored
+            as full card numbers or card-security codes by Spikeydee VIP.
           </p>
         ),
       },
@@ -6945,9 +7075,11 @@ const legalCopy: Record<LegalPageKey, LegalPageContent> = {
         heading: "Service Providers",
         body: (
           <p>
-            Before launch, identify the production payment processor, hosting,
-            video-delivery provider, analytics tools, email services, and other
-            vendors that process personal information on behalf of the site.
+            We use service providers to operate portions of the website,
+            including payment processing, application infrastructure, hosting,
+            and video delivery. Information may be provided to those services
+            only as reasonably necessary to perform their functions or comply
+            with law.
           </p>
         ),
       },
@@ -6955,114 +7087,181 @@ const legalCopy: Record<LegalPageKey, LegalPageContent> = {
         heading: "Privacy Requests",
         body: (
           <p>
-            Production privacy requests should be directed to {SUPPORT_EMAIL}.
-            Add procedures appropriate to the jurisdictions in which the service
-            is offered before launch.
+            Questions or privacy-related requests may be sent to{" "}
+            <strong>{SUPPORT_EMAIL}</strong>. Requests are reviewed and handled
+            in accordance with applicable law.
           </p>
         ),
       },
     ],
   },
 
-"2257": {
-  title: "18 U.S.C. § 2257 Record-Keeping Requirements Compliance Statement",
-  kicker: "RECORDKEEPING",
-  intro:
-    "Spikeydee VIP maintains records as required by 18 U.S.C. §§ 2257 and 2257A and applicable provisions of 28 C.F.R. Part 75 for visual depictions subject to those requirements.",
-  sections: [
-    {
-      heading: "Age Verification",
-      body: (
-        <div>
-          <p>
-            All performers appearing in visual depictions of actual sexually
-            explicit conduct produced by Spikeydee VIP were 18 years of age
-            or older at the time of production.
-          </p>
-
-          <p>
-            Performer age and identity documentation for covered productions
-            is obtained and maintained in accordance with applicable federal
-            record-keeping requirements.
-          </p>
-        </div>
-      ),
-    },
-
-    {
-      heading: "Custodian of Records",
-      body: (
-        <div>
-          <p>
-            Records required pursuant to 18 U.S.C. § 2257 and applicable
-            provisions of 28 C.F.R. Part 75 are maintained by:
-          </p>
-
-          <p>
-           <strong>{RECORDS_CUSTODIAN_NAME}</strong>
-            <br />
-            Custodian of Records
-            <br />
-            Spikeydee VIP
-            <br />
-            {RECORDS_CUSTODIAN_ADDRESS}
-          </p>
-        </div>
-      ),
-    },
-
-    {
-      heading: "Record-Keeping",
-      body: (
-        <p>
-          Required age and identity records for performers appearing in
-          covered productions are maintained by the Custodian of Records at
-          the location identified above and are available for inspection as
-          required by applicable law.
-        </p>
-      ),
-    },
-
-    {
-      heading: "Adults Only",
-      body: (
-        <p>
-          Spikeydee VIP is intended only for adults age 18 or older.
-        </p>
-      ),
-    },
-  ],
-},
-
-  "content-removal": {
-    title: "Content Removal & Complaints",
-    kicker: "SAFETY & COMPLIANCE",
+  "2257": {
+    title: "18 U.S.C. § 2257 Record-Keeping Requirements Compliance Statement",
+    kicker: "RECORDKEEPING",
     intro:
-      "This page provides the public-facing structure for reporting potentially unauthorized, unlawful, non-consensual, incorrectly identified, or otherwise reviewable content.",
+      "Spikeydee VIP maintains records as required by 18 U.S.C. §§ 2257 and 2257A and applicable provisions of 28 C.F.R. Part 75 for visual depictions subject to those requirements.",
     sections: [
       {
-        heading: "How to Submit a Report",
+        heading: "Age Verification",
         body: (
           <div>
             <p>
-              Send reports to <strong>{COMPLAINTS_EMAIL}</strong> and include the
-              video title or page URL, the reason for the request, and enough
-              information for the studio to identify the material.
+              All performers appearing in visual depictions of actual sexually
+              explicit conduct produced by Spikeydee VIP were 18 years of age
+              or older at the time of production.
             </p>
             <p>
-              Do not include unnecessary sensitive personal information in the
-              initial report.
+              Performer age and identity documentation for covered productions
+              is obtained and maintained in accordance with applicable federal
+              record-keeping requirements.
             </p>
           </div>
         ),
       },
       {
-        heading: "Review Process",
+        heading: "Custodian of Records",
+        body: (
+          <div>
+            <p>
+              Records required pursuant to 18 U.S.C. § 2257 and applicable
+              provisions of 28 C.F.R. Part 75 are maintained by:
+            </p>
+            <p>
+              <strong>{RECORDS_CUSTODIAN_NAME}</strong>
+              <br />
+              Custodian of Records
+              <br />
+              Spikeydee VIP
+              <br />
+              {RECORDS_CUSTODIAN_ADDRESS}
+            </p>
+          </div>
+        ),
+      },
+      {
+        heading: "Record-Keeping",
         body: (
           <p>
-            Reports should be reviewed promptly and documented. Where appropriate,
-            content may be temporarily restricted while the studio evaluates the
-            request and preserves relevant records.
+            Required age and identity records for performers appearing in
+            covered productions are maintained by the Custodian of Records at
+            the location identified above and are available for inspection as
+            required by applicable law.
+          </p>
+        ),
+      },
+      {
+        heading: "Adults Only",
+        body: <p>Spikeydee VIP is intended only for adults age 18 or older.</p>,
+      },
+    ],
+  },
+
+  "content-removal": {
+    title: "Content Removal, Complaints & Appeals",
+    kicker: "SAFETY & COMPLIANCE",
+    intro:
+      "Spikeydee VIP accepts reports concerning content that may be illegal, non-consensual, unauthorized, incorrectly identified, or otherwise in violation of our standards.",
+    sections: [
+      {
+        heading: "Anti-Human Trafficking Policy",
+        body: (
+          <div>
+            <p>
+              Spikeydee VIP does not condone, permit, or tolerate human sex
+              trafficking, sexual exploitation, or forced participation in any
+              content or activity.
+            </p>
+            <p>
+              Any instance of suspected human trafficking identified or reported
+              to Spikeydee VIP will be reported to the appropriate authorities
+              as required by applicable law.
+            </p>
+          </div>
+        ),
+      },
+      {
+        heading: "How to Submit a Complaint or Takedown Request",
+        body: (
+          <div>
+            <p>
+              Any person may report content that may be illegal or that otherwise
+              violates our standards. Reports may be sent to{" "}
+              <strong>{COMPLAINTS_EMAIL}</strong>. Include the video title or
+              page URL, the reason for the complaint, and enough information for
+              us to identify the material.
+            </p>
+            <p>
+              You may also submit a complaint or takedown request through the{" "}
+              <a href={CCBILL_COMPLAINT_FORM} rel="nofollow noreferrer" target="_blank">
+                CCBill complaints/takedown request form
+              </a>.
+            </p>
+          </div>
+        ),
+      },
+      {
+        heading: "Review and Resolution",
+        body: (
+          <div>
+            <p>
+              All reported complaints are reviewed and resolved within five
+              business days. We evaluate the reported material, the reason for
+              the complaint, available records, consent documentation where
+              relevant, and any other information reasonably necessary to reach
+              a decision.
+            </p>
+            <p>
+              Content may be temporarily restricted or removed while a review is
+              pending when appropriate for safety, legal compliance, or
+              preservation of relevant records.
+            </p>
+          </div>
+        ),
+      },
+      {
+        heading: "Potential Outcomes",
+        body: (
+          <p>
+            A review may result in removal or disabling of content, temporary
+            restriction while additional information is obtained, correction of
+            information associated with content, restoration or retention of
+            content when the complaint is not substantiated, account or access
+            restrictions where appropriate, preservation of relevant records,
+            or referral to law enforcement or other appropriate authorities when
+            required.
+          </p>
+        ),
+      },
+      {
+        heading: "Appeal Procedure for Depicted Persons",
+        body: (
+          <div>
+            <p>
+              Any person depicted in content may appeal a decision and request
+              removal by contacting <strong>{COMPLAINTS_EMAIL}</strong>. The
+              appeal should identify the content and explain the basis for the
+              request, including any claim that consent was not given, was
+              withdrawn where legally effective, or is void under applicable
+              law.
+            </p>
+            <p>
+              The appeal will be reviewed using available identity, age, consent,
+              production, and other relevant records. If the investigation
+              determines that consent was not given or is void under applicable
+              law, the content will be removed.
+            </p>
+          </div>
+        ),
+      },
+      {
+        heading: "Disagreement Regarding an Appeal",
+        body: (
+          <p>
+            If a depicted person disagrees with the outcome of an appeal, the
+            disagreement may be submitted to a neutral body for resolution at
+            Spikeydee VIP's expense. Spikeydee VIP will cooperate with the
+            neutral review and implement the resulting determination as required.
           </p>
         ),
       },
@@ -7070,19 +7269,22 @@ const legalCopy: Record<LegalPageKey, LegalPageContent> = {
         heading: "Urgent Safety or Illegal Content",
         body: (
           <p>
-            Reports alleging non-consensual intimate imagery, exploitation,
-            trafficking, child sexual abuse material, or other serious illegal
-            conduct should receive immediate priority and should be escalated in
-            accordance with applicable law and platform obligations.
+            Reports involving suspected trafficking, child sexual abuse
+            material, non-consensual intimate imagery, exploitation, or other
+            serious illegal conduct receive priority review and may be reported
+            to the appropriate authorities as required by law.
           </p>
         ),
       },
       {
-        heading: "Copyright Notices",
+        heading: "Copyright Complaints",
         body: (
           <p>
-            Before launch, add the studio's chosen process and designated contact
-            information for copyright infringement notices if applicable.
+            Copyright or intellectual-property complaints may be sent to{" "}
+            <strong>{COMPLAINTS_EMAIL}</strong>. Please identify the copyrighted
+            work, the material claimed to infringe, where the material appears,
+            your contact information, and the basis for your claim so the matter
+            can be reviewed.
           </p>
         ),
       },
@@ -7093,22 +7295,21 @@ const legalCopy: Record<LegalPageKey, LegalPageContent> = {
     title: "Billing, Cancellation & Refunds",
     kicker: "BILLING",
     intro:
-      "The live processor is not connected yet. This page states the intended product structure so the final processor-approved terms can be inserted without redesigning the site.",
+      "This page explains the membership prices, recurring billing terms, cancellation options, and billing-support information for Spikeydee VIP.",
     sections: [
       {
         heading: `Lifetime Membership — ${LIFETIME_PRICE}`,
-        body: (
-          <p>
-            Lifetime access is billed once at $225.00 and is non-recurring.
-          </p>
-        ),
+        body: <p>Lifetime access is billed once at {LIFETIME_PRICE} and is non-recurring.</p>,
       },
       {
         heading: `12 Month Membership — ${TWELVE_MONTH_TOTAL}`,
         body: (
           <p>
-            The 12 Month Membership is billed as one payment of $119.88,
-            equivalent to $9.99 per month for the 12-month access period.
+            The 12 Month Membership is billed as one payment of
+            {TWELVE_MONTH_TOTAL}, equivalent to
+            {TWELVE_MONTH_MONTHLY_EQUIVALENT} per month for the 12-month access
+            period. It is non-recurring unless a different renewal term is
+            expressly shown and accepted at checkout.
           </p>
         ),
       },
@@ -7116,8 +7317,8 @@ const legalCopy: Record<LegalPageKey, LegalPageContent> = {
         heading: `30 Day Membership — ${THIRTY_DAY_PRICE}`,
         body: (
           <p>
-            The 30 Day Membership is billed at $29.99 every 30 days until
-            cancelled and provides full-catalog access while active.
+            The 30 Day Membership is billed at {THIRTY_DAY_PRICE} every 30 days
+            until cancelled and provides full-catalog access while active.
           </p>
         ),
       },
@@ -7125,10 +7326,11 @@ const legalCopy: Record<LegalPageKey, LegalPageContent> = {
         heading: `2 Day Pass — ${TWO_DAY_PRICE}`,
         body: (
           <p>
-            The promotional 2 Day Pass is $0.99 for the first 2 days. After the
-            promotional period, it automatically renews at $32.99 every 30 days
-            until cancelled. During the initial 2-day period, access is limited to
-            videos assigned to the promotional-access tier.
+            The promotional 2 Day Pass is {TWO_DAY_PRICE} for the first 2 days.
+            After the promotional period, it automatically renews at
+            {TWO_DAY_RENEWAL_PRICE} every 30 days until cancelled. During the
+            initial 2-day period, access is limited to videos assigned to the
+            promotional-access tier.
           </p>
         ),
       },
@@ -7136,43 +7338,24 @@ const legalCopy: Record<LegalPageKey, LegalPageContent> = {
         heading: "Recurring Billing and Cancellation",
         body: (
           <p>
-            Before live checkout is enabled, the checkout and this page must state
-            the processor-approved rebilling interval, cancellation method,
-            cancellation effective date, and any renewal reminders or notices
-            that apply.
+            Recurring memberships continue at the price and interval disclosed
+            at checkout until cancelled. For cancellation or billing assistance,
+            contact CCBill Consumer Support at{" "}
+            <strong>{BILLING_SUPPORT_PHONE}</strong> or{" "}
+            <strong>{BILLING_SUPPORT_EMAIL}</strong>. Cancellation stops future
+            recurring charges subject to the terms presented at checkout.
           </p>
         ),
       },
       {
-        heading: "Refunds",
+        heading: "Refunds and Billing Questions",
         body: (
           <p>
-            Insert the final processor-approved refund policy before launch,
-            including treatment of duplicate charges, technical-access issues,
-            charge disputes, and any circumstances in which refunds are or are
-            not offered.
-          </p>
-        ),
-      },
-      {
-        heading: "Billing Descriptor and Support",
-        body: (
-          <div>
-            <p>
-              Planned card statement descriptor: <strong>{BILLING_DESCRIPTOR}</strong>
-            </p>
-            <p>
-              Billing support: <strong>{BILLING_SUPPORT_PHONE}</strong> · <strong>{BILLING_SUPPORT_EMAIL}</strong>
-            </p>
-          </div>
-        ),
-      },
-      {
-        heading: "Development Checkout",
-        body: (
-          <p>
-            The current CCBill screen is a development placeholder only. It does
-            not collect card information and does not create a real charge.
+            Refund and billing requests, including questions concerning duplicate
+            charges or access problems, are reviewed based on the circumstances
+            of the transaction and applicable CCBill terms. Contact CCBill
+            Consumer Support at <strong>{BILLING_SUPPORT_PHONE}</strong> or{" "}
+            <strong>{BILLING_SUPPORT_EMAIL}</strong> for billing assistance.
           </p>
         ),
       },
@@ -7180,24 +7363,36 @@ const legalCopy: Record<LegalPageKey, LegalPageContent> = {
   },
 
   support: {
-    title: "Support",
+    title: "Contact Us & Support",
     kicker: "HELP",
     intro:
-      "Use this page as the central public support destination for access, technical, billing, and content-related questions.",
+      "Contact Spikeydee VIP for general support, account questions, content complaints, or assistance locating CCBill billing support.",
     sections: [
       {
-        heading: "General Support",
+        heading: "Business Contact",
         body: (
-          <p>
-            Email: <strong>{SUPPORT_EMAIL}</strong>
-          </p>
+          <div>
+            <p><strong>{BUSINESS_NAME}</strong></p>
+            <p>Principal: <strong>{BUSINESS_PRINCIPAL}</strong></p>
+            <p>
+              {BUSINESS_CITY}, {BUSINESS_STATE}
+              <br />
+              {BUSINESS_COUNTRY}
+            </p>
+            <p>
+              Email: <strong>{SUPPORT_EMAIL}</strong>
+            </p>
+          </div>
         ),
       },
       {
         heading: "Billing Support",
         body: (
           <p>
-            Phone: <strong>{BILLING_SUPPORT_PHONE}</strong><br />
+            CCBill Consumer Support
+            <br />
+            Phone: <strong>{BILLING_SUPPORT_PHONE}</strong>
+            <br />
             Email: <strong>{BILLING_SUPPORT_EMAIL}</strong>
           </p>
         ),
@@ -7207,29 +7402,9 @@ const legalCopy: Record<LegalPageKey, LegalPageContent> = {
         body: (
           <p>
             Email: <strong>{COMPLAINTS_EMAIL}</strong>
-          </p>
-        ),
-      },
-      {
-        heading: "Business Contact",
-        body: (
-          <div>
-            <p>
-              <strong>{BUSINESS_NAME}</strong>
-            </p>
-            <p>
-              <strong>{BUSINESS_ADDRESS}</strong>
-            </p>
-          </div>
-        ),
-      },
-      {
-        heading: "Before Launch",
-        body: (
-          <p>
-            Replace every bracketed placeholder on these pages with a monitored
-            contact or verified business detail, and test each public support
-            path before accepting payment.
+            <br />
+            Complaints, takedown requests, and appeals are handled under our
+            Content Removal, Complaints & Appeals Policy.
           </p>
         ),
       },
@@ -7777,7 +7952,7 @@ const [, setActiveBrandStartIndex] = useState(0);
 
       setCheckoutReturnOpen(false);
 
-      if (path === "/studio-reset-password") {
+      if (path === "/studio-reset-password" || path === "/member-reset-password") {
         setAuthOpen(false);
         setPasswordResetOpen(true);
         return;
@@ -7785,7 +7960,7 @@ const [, setActiveBrandStartIndex] = useState(0);
 
       setPasswordResetOpen(false);
 
-      if (path === "/studio-login") {
+      if (path === "/studio-login" || path === "/member-login") {
         if (session) {
           setAuthOpen(false);
           setViewMode("account");
@@ -7814,8 +7989,8 @@ const [, setActiveBrandStartIndex] = useState(0);
     setAuthOpen(false);
 
     if (
-      window.location.pathname ===
-      "/studio-login"
+      window.location.pathname === "/studio-login" ||
+      window.location.pathname === "/member-login"
     ) {
       window.history.replaceState(
         {},
@@ -7834,7 +8009,7 @@ const [, setActiveBrandStartIndex] = useState(0);
     window.history.replaceState(
       {},
       "",
-      "/studio-login"
+      "/member-login"
     );
 
     setViewMode("home");
@@ -8021,13 +8196,13 @@ const [, setActiveBrandStartIndex] = useState(0);
               setPasswordResetOpen(true);
 
               if (
-                window.location.pathname !==
-                "/studio-reset-password"
+                window.location.pathname !== "/studio-reset-password" &&
+                window.location.pathname !== "/member-reset-password"
               ) {
                 window.history.replaceState(
                   {},
                   "",
-                  "/studio-reset-password"
+                  "/member-reset-password"
                 );
               }
             }
@@ -9012,6 +9187,11 @@ const loadPublicHeroSettings = async () => {
             true
           )
         }
+        onMemberLogin={() => {
+          setAccessOpen(false);
+          setAuthOpen(true);
+          window.history.pushState({}, "", "/member-login");
+        }}
         session={
           session
         }

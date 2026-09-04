@@ -7,7 +7,7 @@ type PaidPlan =
   | "lifetime";
 
 const EXPECTED_INITIAL_PRICE: Record<PaidPlan, number> = {
-  lifetime: 225.0,
+  lifetime: 275.0,
   twelve_month: 119.88,
   thirty_day: 29.99,
   two_day_pass: 0.99,

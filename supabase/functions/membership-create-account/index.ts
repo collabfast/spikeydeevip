@@ -45,7 +45,13 @@ Deno.serve(async (req) => {
         .single();
 
     if (checkoutError || !checkout) {
-      return json({ ok: false, message: "Checkout not found." }, 404);
+      return json(
+        {
+          ok: false,
+          message: "Checkout not found.",
+        },
+        404,
+      );
     }
 
     if (checkout.status !== "paid") {
@@ -110,9 +116,10 @@ Deno.serve(async (req) => {
         });
 
       if (createError) {
-        // If this email already has a Supabase account, locate it and
-        // attach the paid membership instead of creating a duplicate.
-        userId = await findUserIdByEmail(admin, email);
+        userId = await findUserIdByEmail(
+          admin,
+          email,
+        );
 
         if (!userId) {
           throw new Error(createError.message);
@@ -131,16 +138,23 @@ Deno.serve(async (req) => {
           throw new Error(updateError.message);
         }
       } else {
-        userId = created.user?.id ?? null;
+        userId =
+          created.user?.id ??
+          null;
       }
     }
 
     if (!userId) {
-      throw new Error("Could not resolve member user ID.");
+      throw new Error(
+        "Could not resolve member user ID.",
+      );
     }
 
     const now = new Date().toISOString();
 
+    /*
+     * ATTACH MEMBERSHIP TO USER
+     */
     const { error: updateMembershipError } =
       await admin
         .from("memberships")
@@ -151,9 +165,105 @@ Deno.serve(async (req) => {
         .eq("id", membership.id);
 
     if (updateMembershipError) {
-      throw new Error(updateMembershipError.message);
+      throw new Error(
+        updateMembershipError.message,
+      );
     }
 
+    /*
+     * CREATE / UPDATE PLAYBACK ENTITLEMENT
+     *
+     * bunny-stream-playback uses membership.id
+     * as access_session_id.
+     */
+    const {
+      data: existingEntitlement,
+      error: entitlementLookupError,
+    } =
+      await admin
+        .from("entitlements")
+        .select("id")
+        .eq(
+          "access_session_id",
+          membership.id,
+        )
+        .maybeSingle();
+
+    if (entitlementLookupError) {
+      throw new Error(
+        entitlementLookupError.message,
+      );
+    }
+
+    const entitlementPayload = {
+      access_session_id:
+        membership.id,
+
+      entitlement_type:
+        membership.plan,
+
+      status:
+        membership.status,
+
+      starts_at:
+        membership.starts_at,
+
+      expires_at:
+        membership.expires_at,
+
+      customer_email:
+        email,
+
+      provider:
+        "ccbill",
+
+      updated_at:
+        now,
+    };
+
+    if (existingEntitlement) {
+      const {
+        error:
+          updateEntitlementError,
+      } =
+        await admin
+          .from("entitlements")
+          .update(
+            entitlementPayload,
+          )
+          .eq(
+            "id",
+            existingEntitlement.id,
+          );
+
+      if (updateEntitlementError) {
+        throw new Error(
+          updateEntitlementError.message,
+        );
+      }
+    } else {
+      const {
+        error:
+          insertEntitlementError,
+      } =
+        await admin
+          .from("entitlements")
+          .insert({
+            ...entitlementPayload,
+            created_at:
+              now,
+          });
+
+      if (insertEntitlementError) {
+        throw new Error(
+          insertEntitlementError.message,
+        );
+      }
+    }
+
+    /*
+     * MARK CHECKOUT ACCOUNT AS CREATED
+     */
     const { error: updateCheckoutError } =
       await admin
         .from("membership_checkouts")
@@ -165,15 +275,20 @@ Deno.serve(async (req) => {
         .eq("id", checkoutId);
 
     if (updateCheckoutError) {
-      throw new Error(updateCheckoutError.message);
+      throw new Error(
+        updateCheckoutError.message,
+      );
     }
 
     return json({
       ok: true,
       email,
-      plan: membership.plan,
-      expiresAt: membership.expires_at,
-      accessSessionId: membership.id,
+      plan:
+        membership.plan,
+      expiresAt:
+        membership.expires_at,
+      accessSessionId:
+        membership.id,
     });
   } catch (error) {
     console.error(error);
@@ -195,7 +310,11 @@ async function findUserIdByEmail(
   admin: ReturnType<typeof createClient>,
   email: string,
 ) {
-  for (let page = 1; page <= 10; page += 1) {
+  for (
+    let page = 1;
+    page <= 10;
+    page += 1
+  ) {
     const { data, error } =
       await admin.auth.admin.listUsers({
         page,
@@ -206,10 +325,12 @@ async function findUserIdByEmail(
       throw new Error(error.message);
     }
 
-    const user = data.users.find(
-      (candidate) =>
-        candidate.email?.toLowerCase() === email,
-    );
+    const user =
+      data.users.find(
+        (candidate) =>
+          candidate.email?.toLowerCase() ===
+          email,
+      );
 
     if (user) {
       return user.id;
@@ -226,18 +347,28 @@ async function findUserIdByEmail(
 function corsHeaders() {
   return {
     "Access-Control-Allow-Origin": "*",
+
     "Access-Control-Allow-Headers":
       "authorization, x-client-info, apikey, content-type",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
+
+    "Access-Control-Allow-Methods":
+      "POST, OPTIONS",
   };
 }
 
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      ...corsHeaders(),
-      "Content-Type": "application/json",
+function json(
+  body: unknown,
+  status = 200,
+) {
+  return new Response(
+    JSON.stringify(body),
+    {
+      status,
+      headers: {
+        ...corsHeaders(),
+        "Content-Type":
+          "application/json",
+      },
     },
-  });
+  );
 }
