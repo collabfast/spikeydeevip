@@ -1152,6 +1152,7 @@ function AccessModal({
     >
 
       <section
+        className="vip-access-page-shell"
         role="dialog"
         aria-modal="true"
         aria-label="Choose Spikeydee VIP membership"
@@ -1195,89 +1196,33 @@ function AccessModal({
           }}
         >
 
-          <div>
+          <div className="vip-access-heading">
 
-            <span className="section-kicker">
-              SPIKEYDEE VIP
+            <span className="vip-access-eyebrow">
+              SPIKEYDEE VIP MEMBERSHIP
             </span>
 
-            <h2
-              style={{
-                margin:
-                  "8px 0 10px",
-
-                fontSize:
-                  "32px",
-
-                color:
-                  "#ffffff",
-
-                letterSpacing:
-                  "-0.03em",
-              }}
-            >
-              CHOOSE YOUR VIP ACCESS
+            <h2>
+              CHOOSE YOUR ACCESS
             </h2>
 
-
-            <p
-              style={{
-                margin: 0,
-
-                color:
-                  "var(--text-muted)",
-
-                lineHeight:
-                  1.6,
-              }}
-            >
-              Membership options for{" "}
-
-              <strong
-                style={{
-                  color:
-                    "#fff",
-                }}
-              >
-                {email}
-              </strong>
+            <p className="vip-access-subtitle">
+              Select the membership that works best for you.
             </p>
+
+            <p className="vip-access-account">
+              <span>Signed in as</span>{" "}
+              <strong>{email}</strong>
+            </p>
+
+            <div
+              className="vip-access-heading-accent"
+              aria-hidden="true"
+            />
 
           </div>
 
 
-          <button
-            type="button"
-            aria-label="Close"
-            onClick={onClose}
-            style={{
-              width:
-                "42px",
-
-              height:
-                "42px",
-
-              flexShrink:
-                0,
-
-              border:
-                "1px solid var(--border)",
-
-              borderRadius:
-                "10px",
-
-              background:
-                "#151515",
-
-              color:
-                "#fff",
-
-              fontSize:
-                "20px",
-            }}
-          >
-            ×
-          </button>
 
         </div>
 
@@ -1289,7 +1234,7 @@ function AccessModal({
           className="vip-access-grid"
           style={{
             marginTop:
-              "28px",
+              "10px",
           }}
         >
 
@@ -1361,9 +1306,12 @@ function AccessModal({
           {/* 12 MONTH */}
 
           <article
-            className="vip-access-card"
+            className="vip-access-card vip-access-card-recommended"
             style={planCardStyle}
           >
+            <div className="vip-best-value-badge">
+              BEST VALUE
+            </div>
 
             <div className="spikeydeevip-badge-slot">
 
@@ -1648,54 +1596,139 @@ function AccessModal({
         </div>
 
 
+        {/* BIMBOY MEMBERSHIP BENEFITS */}
+
+        <section className="bimboy-membership-benefits" aria-labelledby="bimboy-benefits-title">
+          <h2 id="bimboy-benefits-title" className="bimboy-benefits-title">
+            <span>YOUR</span>
+
+            <img
+              src={bimboyLogo}
+              alt="Bimboy"
+              className="bimboy-benefits-logo"
+            />
+
+            <span>MEMBERSHIP BENEFITS</span>
+          </h2>
+
+          <div className="bimboy-benefits-grid">
+            <article className="bimboy-benefit-card">
+              <div className="bimboy-benefit-icon bimboy-benefit-icon-4k">4K</div>
+              <h3>Premium Quality</h3>
+              <p>HD &amp; 4K streaming</p>
+            </article>
+
+            <article className="bimboy-benefit-card">
+              <div className="bimboy-benefit-icon">NEW</div>
+              <h3>New Releases</h3>
+              <p>Fresh Bimboy content</p>
+            </article>
+
+            <article className="bimboy-benefit-card">
+              <div className="bimboy-benefit-icon">▶</div>
+              <h3>All Access</h3>
+              <p>Bimboy + SpikeyDeeVIP</p>
+            </article>
+
+            <article className="bimboy-benefit-card">
+              <div className="bimboy-benefit-icon">★</div>
+              <h3>Premium Catalog</h3>
+              <p>Members-only access</p>
+            </article>
+
+            <article className="bimboy-benefit-card">
+              <div className="bimboy-benefit-icon">▶</div>
+              <h3>Stream Anywhere</h3>
+              <p>Watch on your devices</p>
+            </article>
+          </div>
+        </section>
+
+
         {/* BILLING DISCLOSURE */}
 
-        <div
-          className="billing-disclosure"
-          style={{
-            marginTop:
-              "22px",
+        <section className="billing-disclosure billing-disclosure-expanded">
+          <div className="billing-disclosure-header">
+            <span className="billing-disclosure-kicker">SPIKEYDEE VIP</span>
+            <h3>BILLING & MEMBERSHIP DISCLOSURE</h3>
+          </div>
 
-            padding:
-              "16px 18px",
+          <div className="billing-plan-terms">
+            <p>
+              <strong>Bimboy All Access — 1 Year:</strong>{" "}
+              $365.00 for 365 days of access. This plan launches October 10, 2026
+              and is not available for purchase yet.
+            </p>
 
-            border:
-              "1px solid var(--border)",
+            <p>
+              <strong>12 Month Membership:</strong>{" "}
+              One payment of {TWELVE_MONTH_TOTAL} for 12 months of full premium
+              access.
+            </p>
 
-            borderRadius:
-              "14px",
+            <p>
+              <strong>30 Day Membership:</strong>{" "}
+              {THIRTY_DAY_PRICE} every 30 days until cancelled. Full premium
+              catalog access remains active while the membership is current.
+            </p>
 
-            background:
-              "#111",
+            <p>
+              <strong>2 Day Pass:</strong>{" "}
+              {TWO_DAY_PRICE} for the first 2 days. After the promotional period,
+              membership automatically renews at {TWO_DAY_RENEWAL_PRICE} every
+              30 days until cancelled.
+            </p>
+          </div>
 
-            color:
-              "var(--text-muted)",
+          <div className="billing-disclosure-divider" />
 
-            lineHeight:
-              1.6,
-          }}
-        >
+          <div className="billing-disclosure-notice">
+            <p>
+              Recurring memberships continue until cancelled. Final pricing,
+              billing frequency, renewal terms, cancellation terms, and any
+              applicable conditions are shown before purchase.
+            </p>
 
-          <strong
-            style={{
-              color:
-                "#fff",
-            }}
-          >
-            Billing disclosure:
-          </strong>{" "}
+            <p>
+              Billing is processed by CCBill. For billing questions or
+              cancellation assistance, contact CCBill Consumer Support at{" "}
+              <strong>{BILLING_SUPPORT_PHONE}</strong> or{" "}
+              <strong>{BILLING_SUPPORT_EMAIL}</strong>.
+            </p>
+          </div>
 
-          The 2 Day Pass is $0.99
-          for the first 2 days.
-          After the promotional period
-          it automatically renews at{" "}
-          {TWO_DAY_RENEWAL_PRICE} every
-          30 days until cancelled.
-          Recurring plans continue until
-          cancelled according to the
-          terms shown at checkout.
+          <div className="billing-disclosure-divider" />
 
-        </div>
+          <div className="billing-disclosure-legal">
+            <p>
+              SpikeyDeeVIP.com is intended for adults 18+ only. All performers
+              appearing in content available through the service are adults,
+              and content is produced by consenting adults for adult audiences.
+            </p>
+
+            <p>
+              By purchasing or using a membership, you agree to the applicable
+              Terms of Service, Privacy Policy, Billing, Cancellation & Refund
+              Policy, and Content Removal & Complaints Policy.
+            </p>
+
+            <p>
+              Records required pursuant to 18 U.S.C. § 2257 are maintained in
+              accordance with the site's published record-keeping compliance
+              statement.
+            </p>
+          </div>
+
+          <div className="billing-disclosure-footer">
+            <span>© 2026 SpikeyDeeVIP.com. All rights reserved.</span>
+
+            <img
+              src="/rta-logo.png"
+              alt="RTA Restricted to Adults"
+              className="billing-rta-logo"
+            />
+          </div>
+        </section>
 
 
         {/* CHANGE EMAIL */}
