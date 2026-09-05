@@ -1304,17 +1304,22 @@ function AccessModal({
               overflow: "hidden",
             }}
           >
-            <div className="bimboy-logo-slot">
-              <img
-                src={bimboyLogo}
-                alt="Bimboy"
-                className="bimboy-card-logo"
-              />
-            </div>
+            <div className="bimboy-brand-lockup">
+              <div className="bimboy-logo-slot">
+                <img
+                  src={bimboyLogo}
+                  alt="Bimboy"
+                  className="bimboy-card-logo"
+                />
+              </div>
 
-            <div className="bimboy-all-access-text">
-  ALL ACCESS
-</div>
+              <div
+                className="bimboy-all-access-text"
+                aria-label="Bimboy All Access"
+              >
+                ALL ACCESS
+              </div>
+            </div>
 
             <h3 className="bimboy-plan-title">
               1 Year Membership
@@ -1329,8 +1334,8 @@ function AccessModal({
             </div>
 
             <p className="bimboy-plan-description">
-  One membership. Access to Bimboy and SpikeyDeeVIP for 1 year.
-</p>
+              Access to Bimboy + SpikeyDeeVIP for 1 year.
+            </p>
 
             <div
               className="bimboy-launch-date"
@@ -1376,6 +1381,12 @@ function AccessModal({
 
 
               />
+              <span
+                aria-hidden="true"
+                className="spikeydeevip-only-text"
+              >
+                ONLY
+              </span>
 
 
             </div>
@@ -1465,6 +1476,12 @@ function AccessModal({
 
 
               />
+              <span
+                aria-hidden="true"
+                className="spikeydeevip-only-text"
+              >
+                ONLY
+              </span>
 
 
             </div>
@@ -1554,6 +1571,12 @@ function AccessModal({
 
 
               />
+              <span
+                aria-hidden="true"
+                className="spikeydeevip-only-text"
+              >
+                ONLY
+              </span>
 
 
             </div>

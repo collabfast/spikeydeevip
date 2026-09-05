@@ -6021,3 +6021,241 @@ height: 238px;
     drop-shadow(0 2px 0 #7a005f)
     drop-shadow(0 0 6px rgba(255, 0, 190, 0.45));
 }
+/* SPIKEYDEE VIP ONLY — STACKED BRAND LOCKUP */
+
+.spikeydeevip-badge-slot {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 7px !important;
+  height: 72px !important;
+  margin: 0 0 14px !important;
+}
+
+.spikeydeevip-only-badge {
+  display: block !important;
+  width: auto !important;
+  max-width: 145px !important;
+  max-height: 34px !important;
+  margin: 0 auto !important;
+}
+
+.spikeydeevip-only-text {
+  display: block;
+  margin: 0;
+  text-align: center;
+
+  color: #e7bb45;
+  font-size: 18px;
+  font-weight: 900;
+  font-style: italic;
+  line-height: 1;
+  letter-spacing: 0.28em;
+
+  text-shadow:
+    0 1px 0 #6f4c08,
+    0 0 8px rgba(231, 187, 69, 0.25);
+}
+/* SPIKEYDEE VIP — MATCH BIMBOY LOGO SIZE */
+
+.spikeydeevip-only-badge {
+  width: 150px !important;
+  max-width: 160px !important;
+  height: auto !important;
+  max-height: none !important;
+  object-fit: contain !important;
+}
+/* SPIKEYDEE VIP + ONLY — CLOSE LOCKUP */
+
+.spikeydeevip-badge-slot {
+  height: auto !important;
+  min-height: 0 !important;
+  gap: 0 !important;
+  margin-bottom: 18px !important;
+}
+
+.spikeydeevip-only-badge {
+  display: block !important;
+  margin: 0 auto !important;
+}
+
+.spikeydeevip-only-text {
+  display: block !important;
+  margin: -5px 0 0 !important;
+  line-height: 1 !important;
+}
+
+/* =========================================================
+   MEMBERSHIP CARDS — FINAL VISUAL ALIGNMENT
+   Equal outer card size, aligned brand/title/price zones.
+   ========================================================= */
+
+/* Keep all four cards the same outer size. */
+.vip-access-grid {
+  align-items: stretch !important;
+}
+
+.vip-access-grid > .vip-access-card {
+  height: 100% !important;
+  align-self: stretch !important;
+}
+
+/* BIMBOY brand lockup occupies the same top zone as SpikeyDeeVIP ONLY. */
+.bimboy-brand-lockup,
+.spikeydeevip-badge-slot {
+  height: 88px !important;
+  min-height: 88px !important;
+  flex: 0 0 88px !important;
+  margin: 0 0 12px !important;
+
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* BIMBOY logo + ALL ACCESS */
+.bimboy-logo-slot {
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  flex: 0 0 auto !important;
+  margin: 0 !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.bimboy-card-logo {
+  width: auto !important;
+  max-width: 150px !important;
+  max-height: 46px !important;
+  margin: 0 auto !important;
+}
+
+.bimboy-all-access-text {
+  margin: 2px 0 0 !important;
+  text-align: center !important;
+
+  font-size: 18px !important;
+  font-weight: 1000 !important;
+  line-height: 1 !important;
+  letter-spacing: 0.08em !important;
+  font-style: italic !important;
+
+  background: linear-gradient(
+    180deg,
+    #ff40df 0%,
+    #ff1493 35%,
+    #ff7a00 68%,
+    #ffd21c 100%
+  ) !important;
+
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+
+  -webkit-text-stroke: 1px rgba(255, 255, 255, 0.50);
+  filter:
+    drop-shadow(0 1px 0 #000)
+    drop-shadow(0 2px 0 #7a005f)
+    drop-shadow(0 0 6px rgba(255, 0, 190, 0.42));
+}
+
+/* SpikeyDeeVIP ONLY brand lockup */
+.spikeydeevip-badge-slot {
+  gap: 0 !important;
+}
+
+.spikeydeevip-only-badge {
+  display: block !important;
+  width: 150px !important;
+  max-width: 150px !important;
+  height: auto !important;
+  max-height: none !important;
+  margin: 0 auto !important;
+  object-fit: contain !important;
+}
+
+.spikeydeevip-only-text {
+  display: block !important;
+  margin: -3px 0 0 !important;
+
+  color: #e7bb45 !important;
+  font-size: 15px !important;
+  font-weight: 900 !important;
+  font-style: italic !important;
+  line-height: 1 !important;
+  letter-spacing: 0.22em !important;
+  text-align: center !important;
+  text-transform: uppercase !important;
+
+  text-shadow:
+    0 1px 0 #6f4c08,
+    0 0 8px rgba(231, 187, 69, 0.24);
+}
+
+/* Give every plan title the same vertical zone so prices line up. */
+.membership-plan-title,
+.bimboy-plan-title {
+  min-height: 58px !important;
+  margin-top: 0 !important;
+  margin-bottom: 8px !important;
+  display: flex !important;
+  align-items: flex-start !important;
+}
+
+/* Compact BIMBOY copy and launch module. */
+.bimboy-plan-description {
+  margin: 14px 0 14px !important;
+}
+
+.bimboy-launch-date {
+  min-height: 58px !important;
+  padding: 8px 10px !important;
+  margin: 0 0 10px !important;
+}
+
+.bimboy-launch-date span {
+  font-size: 8px !important;
+}
+
+.bimboy-launch-date strong {
+  margin-top: 3px !important;
+  font-size: 22px !important;
+}
+
+/* =========================================================
+   MEMBERSHIP CARDS — PRICE ALIGNMENT + READABILITY
+   ========================================================= */
+
+/* Tighten the space between the brand lockup and the plan title. */
+.bimboy-brand-lockup,
+.spikeydeevip-badge-slot {
+  margin-bottom: 4px !important;
+}
+
+/* Keep every title zone the same height, but anchor titles to the bottom
+   so every price begins on the same horizontal line. */
+.membership-plan-title,
+.bimboy-plan-title {
+  min-height: 58px !important;
+  height: 58px !important;
+  margin-top: 0 !important;
+  margin-bottom: 8px !important;
+
+  display: flex !important;
+  align-items: flex-end !important;
+}
+
+/* Slightly improve readability of membership-card explanatory text. */
+.vip-access-card .membership-card-disclosure,
+.bimboy-plan-description {
+  font-size: 13px !important;
+  line-height: 1.45 !important;
+  color: #aaa !important;
+}
+
