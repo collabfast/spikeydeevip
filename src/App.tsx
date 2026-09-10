@@ -2278,10 +2278,156 @@ function SearchResults({
   favoriteBusyIds,
 }: SearchResultsProps) {
   return (
-    <main>
+    <main className="apply-model-page">
+      <style>{`
+        .apply-model-page,
+        .apply-model-page * {
+          box-sizing: border-box;
+        }
+
+        .apply-model-page {
+          overflow-x: hidden;
+        }
+
+        .apply-model-hero-grid > *,
+        .apply-model-basic-grid > *,
+        .apply-model-experience-grid > *,
+        .apply-model-portfolio-grid > *,
+        .apply-model-submit-grid > * {
+          min-width: 0;
+        }
+
+        @media (max-width: 700px) {
+          .apply-model-section {
+            padding-top: 26px !important;
+            padding-bottom: 64px !important;
+          }
+
+          .apply-model-hero {
+            padding: 22px 18px !important;
+            margin-bottom: 18px !important;
+            border-radius: 16px !important;
+          }
+
+          .apply-model-hero-grid {
+            grid-template-columns: minmax(0, 1fr) !important;
+            gap: 22px !important;
+          }
+
+          .apply-model-hero-title {
+            font-size: clamp(34px, 11vw, 48px) !important;
+            line-height: .98 !important;
+            letter-spacing: -.035em !important;
+          }
+
+          .apply-model-hero-copy {
+            font-size: 14px !important;
+            line-height: 1.65 !important;
+          }
+
+          .apply-model-how {
+            padding: 18px !important;
+          }
+
+          .apply-model-form {
+            gap: 14px !important;
+          }
+
+          .apply-model-card {
+            padding: 20px 16px !important;
+            border-radius: 16px !important;
+          }
+
+          .apply-model-card-heading {
+            align-items: flex-start !important;
+            margin-bottom: 20px !important;
+          }
+
+          .apply-model-card-heading h2 {
+            font-size: 18px !important;
+            line-height: 1.2 !important;
+          }
+
+          .apply-model-basic-grid,
+          .apply-model-experience-grid,
+          .apply-model-portfolio-grid,
+          .apply-model-submit-grid {
+            grid-template-columns: minmax(0, 1fr) !important;
+          }
+
+          .apply-model-basic-grid {
+            gap: 14px !important;
+          }
+
+          .apply-model-experience-grid {
+            gap: 10px !important;
+          }
+
+          .apply-model-interest-list {
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px !important;
+          }
+
+          .apply-model-interest-list button {
+            width: 100%;
+            padding: 0 10px !important;
+            font-size: 12px;
+          }
+
+          .apply-model-portfolio-grid {
+            gap: 12px !important;
+          }
+
+          .apply-model-portfolio-card {
+            min-height: 138px !important;
+            padding: 16px !important;
+          }
+
+          .apply-model-submit-grid {
+            gap: 20px !important;
+            align-items: stretch !important;
+          }
+
+          .apply-model-submit-button {
+            width: 100% !important;
+            min-width: 0 !important;
+          }
+
+          .apply-model-note,
+          .apply-model-error {
+            margin-left: 31px !important;
+          }
+
+          .apply-model-back {
+            width: 100%;
+            justify-content: center;
+          }
+
+          .apply-model-page input:not([type="checkbox"]):not([type="file"]),
+          .apply-model-page textarea,
+          .apply-model-page select {
+            font-size: 16px !important;
+          }
+        }
+
+        @media (max-width: 390px) {
+          .apply-model-interest-list {
+            grid-template-columns: minmax(0, 1fr);
+          }
+
+          .apply-model-card {
+            padding: 18px 14px !important;
+          }
+
+          .apply-model-hero {
+            padding: 20px 14px !important;
+          }
+        }
+      `}</style>
       <div className="content-wrapper">
         <section
-          className="content-section"
+          className="content-section apply-model-section"
           style={{
             paddingTop:
               "70px",
@@ -4162,6 +4308,7 @@ function ApplyToModelPage({ onBack }: { onBack: () => void }) {
         >
           {/* HERO */}
           <div
+            className="apply-model-hero"
             style={{
               ...cardStyle,
               position: "relative",
@@ -4184,6 +4331,7 @@ function ApplyToModelPage({ onBack }: { onBack: () => void }) {
             />
 
             <div
+              className="apply-model-hero-grid"
               style={{
                 position: "relative",
                 display: "grid",
@@ -4196,6 +4344,7 @@ function ApplyToModelPage({ onBack }: { onBack: () => void }) {
                 <span className="section-kicker">SPIKEYDEE VIP CASTING</span>
 
                 <h1
+                  className="apply-model-hero-title"
                   style={{
                     margin: "12px 0 14px",
                     maxWidth: "760px",
@@ -4210,6 +4359,7 @@ function ApplyToModelPage({ onBack }: { onBack: () => void }) {
                 </h1>
 
                 <p
+                  className="apply-model-hero-copy"
                   style={{
                     maxWidth: "720px",
                     margin: 0,
@@ -4255,6 +4405,7 @@ function ApplyToModelPage({ onBack }: { onBack: () => void }) {
               </div>
 
               <div
+                className="apply-model-how"
                 style={{
                   padding: "22px",
                   borderRadius: "16px",
@@ -4380,6 +4531,7 @@ function ApplyToModelPage({ onBack }: { onBack: () => void }) {
             </div>
           ) : (
             <form
+              className="apply-model-form"
               onSubmit={submitApplication}
               style={{
                 display: "grid",
@@ -4402,12 +4554,14 @@ function ApplyToModelPage({ onBack }: { onBack: () => void }) {
 
               {/* SECTION 1 */}
               <section
+                className="apply-model-card"
                 style={{
                   ...cardStyle,
                   padding: "clamp(22px, 4vw, 34px)",
                 }}
               >
                 <div
+                  className="apply-model-card-heading"
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -4448,6 +4602,7 @@ function ApplyToModelPage({ onBack }: { onBack: () => void }) {
                 </div>
 
                 <div
+                  className="apply-model-basic-grid"
                   style={{
                     display: "grid",
                     gridTemplateColumns:
@@ -4522,12 +4677,14 @@ function ApplyToModelPage({ onBack }: { onBack: () => void }) {
 
               {/* SECTION 2 */}
               <section
+                className="apply-model-card"
                 style={{
                   ...cardStyle,
                   padding: "clamp(22px, 4vw, 34px)",
                 }}
               >
                 <div
+                  className="apply-model-card-heading"
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -4571,6 +4728,7 @@ function ApplyToModelPage({ onBack }: { onBack: () => void }) {
                   <div>
                     <span className="section-kicker">EXPERIENCE</span>
                     <div
+                      className="apply-model-experience-grid"
                       style={{
                         display: "grid",
                         gridTemplateColumns:
@@ -4640,6 +4798,7 @@ function ApplyToModelPage({ onBack }: { onBack: () => void }) {
                       WHAT ARE YOU INTERESTED IN?
                     </span>
                     <div
+                      className="apply-model-interest-list"
                       style={{
                         display: "flex",
                         gap: "10px",
@@ -4689,12 +4848,14 @@ function ApplyToModelPage({ onBack }: { onBack: () => void }) {
 
               {/* SECTION 3 */}
               <section
+                className="apply-model-card"
                 style={{
                   ...cardStyle,
                   padding: "clamp(22px, 4vw, 34px)",
                 }}
               >
                 <div
+                  className="apply-model-card-heading"
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -4767,12 +4928,14 @@ function ApplyToModelPage({ onBack }: { onBack: () => void }) {
 
               {/* SECTION 4 */}
               <section
+                className="apply-model-card"
                 style={{
                   ...cardStyle,
                   padding: "clamp(22px, 4vw, 34px)",
                 }}
               >
                 <div
+                  className="apply-model-card-heading"
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -4813,6 +4976,7 @@ function ApplyToModelPage({ onBack }: { onBack: () => void }) {
                 </div>
 
                 <div
+                  className="apply-model-portfolio-grid"
                   style={{
                     display: "grid",
                     gridTemplateColumns:
@@ -4842,6 +5006,7 @@ function ApplyToModelPage({ onBack }: { onBack: () => void }) {
                   ].map(({ key, label, file, setFile }) => (
                     <label
                       key={key}
+                      className="apply-model-portfolio-card"
                       style={{
                         display: "grid",
                         gap: "10px",
@@ -4932,6 +5097,7 @@ function ApplyToModelPage({ onBack }: { onBack: () => void }) {
 
               {/* CONFIRM & SUBMIT */}
               <section
+                className="apply-model-card apply-model-submit-grid"
                 style={{
                   ...cardStyle,
                   padding: "clamp(22px, 4vw, 30px)",
@@ -4977,6 +5143,7 @@ function ApplyToModelPage({ onBack }: { onBack: () => void }) {
                   </label>
 
                   <p
+                    className="apply-model-note"
                     style={{
                       margin: "12px 0 0 31px",
                       color: "var(--text-dim)",
@@ -4991,6 +5158,7 @@ function ApplyToModelPage({ onBack }: { onBack: () => void }) {
                   {submitError && (
                     <p
                       role="alert"
+                      className="apply-model-error"
                       style={{
                         margin: "14px 0 0 31px",
                         color: "#ff8888",
@@ -5004,7 +5172,7 @@ function ApplyToModelPage({ onBack }: { onBack: () => void }) {
 
                 <button
                   type="submit"
-                  className="primary-button"
+                  className="primary-button apply-model-submit-button"
                   disabled={submitting}
                   style={{
                     minWidth: "210px",
@@ -5021,7 +5189,7 @@ function ApplyToModelPage({ onBack }: { onBack: () => void }) {
 
               <button
                 type="button"
-                className="secondary-button"
+                className="secondary-button apply-model-back"
                 onClick={onBack}
                 style={{
                   justifySelf: "start",
