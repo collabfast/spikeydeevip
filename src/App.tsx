@@ -2278,156 +2278,10 @@ function SearchResults({
   favoriteBusyIds,
 }: SearchResultsProps) {
   return (
-    <main className="apply-model-page">
-      <style>{`
-        .apply-model-page,
-        .apply-model-page * {
-          box-sizing: border-box;
-        }
-
-        .apply-model-page {
-          overflow-x: hidden;
-        }
-
-        .apply-model-hero-grid > *,
-        .apply-model-basic-grid > *,
-        .apply-model-experience-grid > *,
-        .apply-model-portfolio-grid > *,
-        .apply-model-submit-grid > * {
-          min-width: 0;
-        }
-
-        @media (max-width: 700px) {
-          .apply-model-section {
-            padding-top: 26px !important;
-            padding-bottom: 64px !important;
-          }
-
-          .apply-model-hero {
-            padding: 22px 18px !important;
-            margin-bottom: 18px !important;
-            border-radius: 16px !important;
-          }
-
-          .apply-model-hero-grid {
-            grid-template-columns: minmax(0, 1fr) !important;
-            gap: 22px !important;
-          }
-
-          .apply-model-hero-title {
-            font-size: clamp(34px, 11vw, 48px) !important;
-            line-height: .98 !important;
-            letter-spacing: -.035em !important;
-          }
-
-          .apply-model-hero-copy {
-            font-size: 14px !important;
-            line-height: 1.65 !important;
-          }
-
-          .apply-model-how {
-            padding: 18px !important;
-          }
-
-          .apply-model-form {
-            gap: 14px !important;
-          }
-
-          .apply-model-card {
-            padding: 20px 16px !important;
-            border-radius: 16px !important;
-          }
-
-          .apply-model-card-heading {
-            align-items: flex-start !important;
-            margin-bottom: 20px !important;
-          }
-
-          .apply-model-card-heading h2 {
-            font-size: 18px !important;
-            line-height: 1.2 !important;
-          }
-
-          .apply-model-basic-grid,
-          .apply-model-experience-grid,
-          .apply-model-portfolio-grid,
-          .apply-model-submit-grid {
-            grid-template-columns: minmax(0, 1fr) !important;
-          }
-
-          .apply-model-basic-grid {
-            gap: 14px !important;
-          }
-
-          .apply-model-experience-grid {
-            gap: 10px !important;
-          }
-
-          .apply-model-interest-list {
-            display: grid !important;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 10px !important;
-          }
-
-          .apply-model-interest-list button {
-            width: 100%;
-            padding: 0 10px !important;
-            font-size: 12px;
-          }
-
-          .apply-model-portfolio-grid {
-            gap: 12px !important;
-          }
-
-          .apply-model-portfolio-card {
-            min-height: 138px !important;
-            padding: 16px !important;
-          }
-
-          .apply-model-submit-grid {
-            gap: 20px !important;
-            align-items: stretch !important;
-          }
-
-          .apply-model-submit-button {
-            width: 100% !important;
-            min-width: 0 !important;
-          }
-
-          .apply-model-note,
-          .apply-model-error {
-            margin-left: 31px !important;
-          }
-
-          .apply-model-back {
-            width: 100%;
-            justify-content: center;
-          }
-
-          .apply-model-page input:not([type="checkbox"]):not([type="file"]),
-          .apply-model-page textarea,
-          .apply-model-page select {
-            font-size: 16px !important;
-          }
-        }
-
-        @media (max-width: 390px) {
-          .apply-model-interest-list {
-            grid-template-columns: minmax(0, 1fr);
-          }
-
-          .apply-model-card {
-            padding: 18px 14px !important;
-          }
-
-          .apply-model-hero {
-            padding: 20px 14px !important;
-          }
-        }
-      `}</style>
+    <main>
       <div className="content-wrapper">
         <section
-          className="content-section apply-model-section"
+          className="content-section"
           style={{
             paddingTop:
               "70px",
@@ -4297,10 +4151,10 @@ function ApplyToModelPage({ onBack }: { onBack: () => void }) {
   };
 
   return (
-    <main>
+    <main className="apply-model-page">
       <div className="content-wrapper">
         <section
-          className="content-section"
+          className="content-section apply-model-section"
           style={{
             paddingTop: "54px",
             paddingBottom: "100px",
