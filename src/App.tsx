@@ -334,7 +334,6 @@ type VideoFormState = {
 };
 
 /* =========================================================
-   CONSTANTS/* =========================================================
    CONSTANTS
    ========================================================= */
 
@@ -2034,7 +2033,7 @@ function ContentCard({
           {item.accessTier ===
           "monthly_only"
             ? "MONTHLY VIP"
-            : "1-DAY + VIP"}
+            : "2-DAY + VIP"}
         </span>
 
         <span className="card-play">
@@ -9036,17 +9035,13 @@ const saveHeroSettings = async () => {
           key={banner.id}
           style={uploadBoxStyle}
         >
-          <img
-            src={banner.image_url}
-            alt={banner.title ?? "Homepage banner"}
-            style={{
-              display: "block",
-              width: "100%",
-              aspectRatio: "16 / 6",
-              objectFit: "cover",
-              borderRadius: "10px",
-            }}
-          />
+         <div className="w-full aspect-square md:aspect-[21/9] overflow-hidden rounded-[10px] relative">
+  <img
+    src={banner.image_url}
+    alt={banner.title ?? "Homepage banner"}
+    className="w-full h-full object-cover object-center"
+  />
+</div>
 
           <div style={{ marginTop: "14px" }}>
             <span className="section-kicker">
@@ -14664,68 +14659,95 @@ const loadPublicHeroSettings = async () => {
       ) : (
         <main>
 {!accessActive && !adminAccess ? (
-  <section className="public-home-slideshow" aria-label="Spikeydee VIP featured promotions">
-    {activeHomepageBanner ? (
+  <section
+    className="public-home-slideshow relative w-full aspect-square md:aspect-[21/9] overflow-hidden"
+    aria-label="Spikeydee VIP Featured Content"
+  >
+    {homepageBanners.length > 0 && activeHomepageBanner ? (
       <>
         {homepageBanners.map((banner, index) => (
           <img
             key={banner.id}
-            className={`public-home-slide ${index === activeBannerIndex ? "is-active" : ""}`}
+            className={`public-home-slide w-full h-full object-cover object-center ${
+              index === activeBannerIndex ? "is-active" : ""
+            }`}
             src={banner.image_url}
             alt=""
             aria-hidden="true"
           />
         ))}
+
         <div className="public-home-slide-overlay" />
 
-<div className="public-home-slide-content">
-  <span className="public-home-eyebrow">
-    {activeHomepageBanner.eyebrow || "SPIKEYDEE VIP ORIGINALS"}
-  </span>
+        <div className="public-home-slide-content">
+          <span className="public-home-eyebrow">
+            {activeHomepageBanner.eyebrow || "SPIKEYDEE VIP ORIGINALS"}
+          </span>
 
-  <h1>
-    {activeHomepageBanner.title || (
-      <>
-        EXCLUSIVE CONTENT.
-        <strong> ONLY ON SPIKEYDEE VIP.</strong>
-      </>
-    )}
-  </h1>
+          <h1>
+            {activeHomepageBanner.title || (
+              <>
+                EXCLUSIVE CONTENT.
+                <strong> ONLY ON SPIKEYDEE VIP.</strong>
+              </>
+            )}
+          </h1>
 
-  <p>
-    {activeHomepageBanner.subtitle ||
-      "Get instant access to the complete SpikeyDeeVIP collection, exclusive series, and new premium releases."}
-  </p>
+          <p>
+            {activeHomepageBanner.subtitle ||
+              "Get instant access to the complete SpikeyDeeVIP collection, exclusive series, and new premium releases."}
+          </p>
 
-  <div className="public-home-hero-actions">
-    <button
-      type="button"
-      className="public-home-cta"
-      onClick={() => setAccessOpen(true)}
-    >
-      {activeHomepageBanner.button_text || "GET INSTANT ACCESS"} →
-    </button>
+          <div className="public-home-hero-actions">
+            <button
+              type="button"
+              className="public-home-cta"
+              onClick={() => setAccessOpen(true)}
+            >
+              {activeHomepageBanner.button_text || "GET INSTANT ACCESS"} →
+            </button>
 
-    <button
-      type="button"
-      className="public-home-secondary-cta"
-      onClick={() =>
-        document
-          .getElementById("exclusive-series")
-          ?.scrollIntoView({ behavior: "smooth" })
-      }
-    >
-      SEE WHAT'S INSIDE
-    </button>
-  </div>
-</div>
+            <button
+              type="button"
+              className="public-home-secondary-cta"
+              onClick={() =>
+                document
+                  .getElementById("exclusive-series")
+                  ?.scrollIntoView({ behavior: "smooth" })
+              }
+            >
+              SEE WHAT'S INSIDE
+            </button>
+          </div>
+        </div>
+
         {homepageBanners.length > 1 && (
           <>
-            <button type="button" className="public-home-arrow public-home-arrow-left" onClick={showPreviousBanner} aria-label="Previous banner">‹</button>
-            <button type="button" className="public-home-arrow public-home-arrow-right" onClick={showNextBanner} aria-label="Next banner">›</button>
+            <button
+              type="button"
+              className="public-home-arrow public-home-arrow-left"
+              onClick={showPreviousBanner}
+              aria-label="Previous banner"
+            >
+              ‹
+            </button>
+            <button
+              type="button"
+              className="public-home-arrow public-home-arrow-right"
+              onClick={showNextBanner}
+              aria-label="Next banner"
+            >
+              ›
+            </button>
             <div className="public-home-dots" aria-label="Choose banner">
               {homepageBanners.map((banner, index) => (
-                <button key={banner.id} type="button" className={index === activeBannerIndex ? "is-active" : ""} onClick={() => setActiveBannerIndex(index)} aria-label={`Show banner ${index + 1}`} />
+                <button
+                  key={banner.id}
+                  type="button"
+                  className={index === activeBannerIndex ? "is-active" : ""}
+                  onClick={() => setActiveBannerIndex(index)}
+                  aria-label={`Show banner ${index + 1}`}
+                />
               ))}
             </div>
           </>
@@ -14735,12 +14757,18 @@ const loadPublicHeroSettings = async () => {
       <div className="public-home-empty-hero">
         <div>
           <span className="public-home-eyebrow">SPIKEYDEE VIP</span>
-          <button type="button" className="public-home-cta" onClick={() => setAccessOpen(true)}>JOIN VIP</button>
+          <button
+            type="button"
+            className="public-home-cta"
+            onClick={() => setAccessOpen(true)}
+          >
+            JOIN VIP
+          </button>
         </div>
       </div>
     )}
   </section>
- ) : (
+) : (
   <section
     className="public-home-slideshow"
     aria-label="Spikeydee VIP member banner"
