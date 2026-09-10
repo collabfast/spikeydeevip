@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import * as tus from "tus-js-client";
@@ -143,6 +143,7 @@ type VideoRecord = {
 type HomepageBanner = {
   id: string;
   image_url: string;
+  mobile_image_url?: string | null;
   eyebrow: string | null;
   title: string | null;
   subtitle: string | null;
@@ -5225,6 +5226,11 @@ const [bannerSubtitle, setBannerSubtitle] = useState("");
 const [bannerSaving, setBannerSaving] = useState(false);
 const [bannerMessage, setBannerMessage] = useState("");
 const [bannerError, setBannerError] = useState("");
+const [mobileBannerTargetId, setMobileBannerTargetId] = useState("");
+const [mobileBannerFile, setMobileBannerFile] = useState<File | null>(null);
+const [mobileBannerSaving, setMobileBannerSaving] = useState(false);
+const [mobileBannerMessage, setMobileBannerMessage] = useState("");
+const [mobileBannerError, setMobileBannerError] = useState("");
 
 const activeHomepageBannerCount = homepageBanners.filter(
   (banner) => banner.is_published
@@ -6491,6 +6497,107 @@ const uploadHomepageBanner = async () => {
   }
 };
 
+const uploadHomepageMobileBanner = async () => {
+  const targetBanner = homepageBanners.find(
+    (banner) => banner.id === mobileBannerTargetId
+  );
+
+  if (!targetBanner) {
+    setMobileBannerError("Choose the desktop banner this mobile image belongs to.");
+    return;
+  }
+
+  if (!mobileBannerFile) {
+    setMobileBannerError("Choose a square mobile banner image first.");
+    return;
+  }
+
+  const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+  if (!allowedTypes.has(mobileBannerFile.type)) {
+    setMobileBannerError("Mobile banner must be JPG, PNG, or WEBP.");
+    return;
+  }
+
+  setMobileBannerSaving(true);
+  setMobileBannerError("");
+  setMobileBannerMessage("");
+
+  let uploadedFilePath: string | null = null;
+
+  try {
+    const extension =
+      mobileBannerFile.name.split(".").pop()?.toLowerCase() || "jpg";
+    const uniqueId =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    const filePath = `banners/mobile/mobile-${uniqueId}.${extension}`;
+    uploadedFilePath = filePath;
+
+    const { error: uploadError } = await supabase.storage
+      .from("homepage-media")
+      .upload(filePath, mobileBannerFile, {
+        upsert: false,
+        contentType: mobileBannerFile.type || "image/jpeg",
+      });
+
+    if (uploadError) {
+      throw new Error(
+        `Mobile banner upload failed: ${uploadError.message ?? String(uploadError)}`
+      );
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from("homepage-media")
+      .getPublicUrl(filePath);
+
+    const previousMobileUrl = targetBanner.mobile_image_url ?? null;
+
+    const { error: updateError } = await supabase
+      .from("homepage_banners")
+      .update({
+        mobile_image_url: publicUrlData.publicUrl,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", targetBanner.id);
+
+    if (updateError) {
+      await supabase.storage.from("homepage-media").remove([filePath]);
+      uploadedFilePath = null;
+      throw new Error(
+        `Could not save mobile banner: ${updateError.message ?? String(updateError)}`
+      );
+    }
+
+    if (previousMobileUrl) {
+      const marker = "/storage/v1/object/public/homepage-media/";
+      const markerIndex = previousMobileUrl.indexOf(marker);
+      if (markerIndex >= 0) {
+        const oldPath = decodeURIComponent(
+          previousMobileUrl.slice(markerIndex + marker.length)
+        );
+        await supabase.storage.from("homepage-media").remove([oldPath]);
+      }
+    }
+
+    setMobileBannerFile(null);
+    setMobileBannerMessage(
+      "Mobile square banner saved. Phones will use this image for the selected homepage slide."
+    );
+    await loadHomepageBanners();
+  } catch (error) {
+    if (uploadedFilePath) {
+      await supabase.storage.from("homepage-media").remove([uploadedFilePath]);
+    }
+    setMobileBannerError(
+      error instanceof Error ? error.message : "Could not upload mobile banner."
+    );
+  } finally {
+    setMobileBannerSaving(false);
+  }
+};
+
 const deleteHomepageBanner = async (banner: HomepageBanner) => {
   if (!window.confirm("Delete this homepage banner?")) return;
 
@@ -6515,6 +6622,17 @@ const deleteHomepageBanner = async (banner: HomepageBanner) => {
     await supabase.storage
       .from("homepage-media")
       .remove([path]);
+  }
+
+  if (banner.mobile_image_url) {
+    const mobileMarker = "/storage/v1/object/public/homepage-media/";
+    const mobileMarkerIndex = banner.mobile_image_url.indexOf(mobileMarker);
+    if (mobileMarkerIndex >= 0) {
+      const mobilePath = decodeURIComponent(
+        banner.mobile_image_url.slice(mobileMarkerIndex + mobileMarker.length)
+      );
+      await supabase.storage.from("homepage-media").remove([mobilePath]);
+    }
   }
 
   setBannerMessage("Banner removed.");
@@ -9117,6 +9235,92 @@ const saveHeroSettings = async () => {
             >
               Delete
             </button>
+          </div>
+        </article>
+      ))}
+    </div>
+  )}
+</div>
+
+{/* =====================================================
+    MOBILE HOMEPAGE BANNER MANAGER
+===================================================== */}
+<div className="studio-mobile-banner-manager">
+  <span className="section-kicker">MOBILE HOMEPAGE</span>
+  <h2>Square Mobile Banner Artwork</h2>
+  <p className="studio-mobile-banner-copy">
+    Upload a separate 1:1 image for phones. The desktop slideshow keeps its
+    wide artwork, while screens 640px wide and below use this square version.
+  </p>
+
+  <div className="studio-mobile-banner-form">
+    <label>
+      <span>DESKTOP BANNER TO MATCH</span>
+      <select
+        value={mobileBannerTargetId}
+        onChange={(event) => setMobileBannerTargetId(event.target.value)}
+        style={fieldStyle}
+      >
+        <option value="">Choose a homepage banner…</option>
+        {homepageBanners.map((banner, index) => (
+          <option key={banner.id} value={banner.id}>
+            {banner.title?.trim() || banner.eyebrow?.trim() || `Banner ${index + 1}`}
+          </option>
+        ))}
+      </select>
+    </label>
+
+    <label>
+      <span>SQUARE MOBILE IMAGE</span>
+      <input
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        onChange={(event) =>
+          setMobileBannerFile(event.target.files?.[0] ?? null)
+        }
+        style={fieldStyle}
+      />
+    </label>
+
+    <div className="studio-mobile-banner-tip">
+      Recommended: <strong>1080 × 1080 px</strong> (1:1). Keep logos and text
+      away from the outer edges so they stay visible on smaller phones.
+    </div>
+
+    <button
+      type="button"
+      className="primary-button studio-mobile-banner-upload"
+      disabled={mobileBannerSaving || !homepageBanners.length}
+      onClick={() => void uploadHomepageMobileBanner()}
+    >
+      {mobileBannerSaving ? "Uploading…" : "Upload Mobile Square Banner"}
+    </button>
+  </div>
+
+  {mobileBannerMessage && (
+    <p className="studio-mobile-banner-success">{mobileBannerMessage}</p>
+  )}
+  {mobileBannerError && (
+    <p className="studio-mobile-banner-error">{mobileBannerError}</p>
+  )}
+
+  {homepageBanners.length > 0 && (
+    <div className="studio-mobile-banner-grid">
+      {homepageBanners.map((banner, index) => (
+        <article key={banner.id} className="studio-mobile-banner-card">
+          <div className="studio-mobile-banner-preview">
+            <img
+              src={banner.mobile_image_url || banner.image_url}
+              alt=""
+            />
+          </div>
+          <div>
+            <span className="section-kicker">
+              {banner.mobile_image_url ? "MOBILE ARTWORK READY" : "USING DESKTOP FALLBACK"}
+            </span>
+            <h3>
+              {banner.title?.trim() || banner.eyebrow?.trim() || `Banner ${index + 1}`}
+            </h3>
           </div>
         </article>
       ))}
@@ -14688,15 +14892,24 @@ const loadPublicHeroSettings = async () => {
     {homepageBanners.length > 0 && activeHomepageBanner ? (
       <>
         {homepageBanners.map((banner, index) => (
-          <img
-            key={banner.id}
-            className={`public-home-slide w-full h-full object-cover object-center ${
-              index === activeBannerIndex ? "is-active" : ""
-            }`}
-            src={banner.image_url}
-            alt=""
-            aria-hidden="true"
-          />
+          <Fragment key={banner.id}>
+            <img
+              className={`public-home-slide public-home-slide-desktop ${
+                index === activeBannerIndex ? "is-active" : ""
+              }`}
+              src={banner.image_url}
+              alt=""
+              aria-hidden="true"
+            />
+            <img
+              className={`public-home-slide public-home-slide-mobile ${
+                index === activeBannerIndex ? "is-active" : ""
+              }`}
+              src={banner.mobile_image_url || banner.image_url}
+              alt=""
+              aria-hidden="true"
+            />
+          </Fragment>
         ))}
 
         <div className="public-home-slide-overlay" />
@@ -14797,12 +15010,20 @@ const loadPublicHeroSettings = async () => {
     style={{ background: "#000" }}
   >
     {activeHomepageBanner?.image_url ? (
-      <img
-        className="public-home-slide is-active"
-        src={activeHomepageBanner.image_url}
-        alt=""
-        aria-hidden="true"
-      />
+      <>
+        <img
+          className="public-home-slide public-home-slide-desktop is-active"
+          src={activeHomepageBanner.image_url}
+          alt=""
+          aria-hidden="true"
+        />
+        <img
+          className="public-home-slide public-home-slide-mobile is-active"
+          src={activeHomepageBanner.mobile_image_url || activeHomepageBanner.image_url}
+          alt=""
+          aria-hidden="true"
+        />
+      </>
     ) : heroItem?.thumbnailUrl ? (
       <img
         className="public-home-slide is-active"

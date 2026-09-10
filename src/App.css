@@ -7909,3 +7909,170 @@ main .content-section textarea::placeholder {
     font-size: clamp(30px, 9.5vw, 38px) !important;
   }
 }
+
+/* =========================================================
+   MOBILE SQUARE HOMEPAGE BANNERS
+   Desktop keeps panoramic artwork; phones use 1:1 artwork.
+   ========================================================= */
+
+.public-home-slide-mobile {
+  display: none !important;
+}
+
+.studio-mobile-banner-manager {
+  padding: 26px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  margin-bottom: 36px;
+  background: #101010;
+}
+
+.studio-mobile-banner-manager h2 {
+  margin: 8px 0;
+}
+
+.studio-mobile-banner-copy {
+  max-width: 760px;
+  margin: 0 0 24px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.studio-mobile-banner-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-items: end;
+}
+
+.studio-mobile-banner-form label {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  color: #d8d8da;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.studio-mobile-banner-form select,
+.studio-mobile-banner-form input {
+  min-width: 0;
+}
+
+.studio-mobile-banner-tip {
+  grid-column: 1 / -1;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.studio-mobile-banner-upload {
+  width: fit-content;
+}
+
+.studio-mobile-banner-success {
+  color: #8ff0ad;
+  margin-top: 16px;
+}
+
+.studio-mobile-banner-error {
+  color: #ff7777;
+  margin-top: 16px;
+}
+
+.studio-mobile-banner-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-top: 26px;
+}
+
+.studio-mobile-banner-card {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: 14px;
+  background: #0b0b0c;
+}
+
+.studio-mobile-banner-preview {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #050505;
+}
+
+.studio-mobile-banner-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.studio-mobile-banner-card h3 {
+  margin: 7px 0 0;
+}
+
+@media (max-width: 640px) {
+  /* True box-sized mobile hero */
+  .public-home-slideshow {
+    width: calc(100% - 24px) !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    aspect-ratio: 1 / 1 !important;
+    margin: 12px auto 0 !important;
+    border-radius: 18px !important;
+    overflow: hidden !important;
+  }
+
+  .public-home-slide-desktop {
+    display: none !important;
+  }
+
+  .public-home-slide-mobile {
+    display: block !important;
+  }
+
+  .public-home-slide-mobile,
+  .public-home-slideshow .public-home-slide-mobile {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    object-position: center !important;
+  }
+
+  /* Mobile artwork is designed with its own text/logo, so keep overlays subtle. */
+  .public-home-slide-overlay {
+    background: linear-gradient(0deg, rgba(0,0,0,.12), transparent 38%) !important;
+  }
+
+  .public-home-slide-content {
+    width: calc(100% - 28px) !important;
+    padding: 18px 0 !important;
+    justify-content: flex-end !important;
+  }
+
+  .studio-mobile-banner-manager {
+    padding: 18px 14px;
+    border-radius: 14px;
+  }
+
+  .studio-mobile-banner-form {
+    grid-template-columns: 1fr;
+  }
+
+  .studio-mobile-banner-tip {
+    grid-column: auto;
+  }
+
+  .studio-mobile-banner-upload {
+    width: 100% !important;
+    min-height: 50px;
+  }
+
+  .studio-mobile-banner-grid {
+    grid-template-columns: 1fr;
+  }
+}
