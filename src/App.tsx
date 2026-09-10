@@ -881,10 +881,10 @@ function AccessModal({
 
             <h1>
               <span>JOIN VIP</span>{" "}
-              FOR EXCLUSIVE ACCESS TO
+              FOR ACCESS TO
 
               <strong>
-                2,000+ RELEASES
+                2,000+ RELEASES UNLOCKED
               </strong>
             </h1>
 
