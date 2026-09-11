@@ -369,10 +369,10 @@ const MAX_HOMEPAGE_TILES = 6;
 const MAX_HOMEPAGE_BRANDS = 12;
 const MAX_HOMEPAGE_PERFORMERS = 8;
 
-const SUPPORT_EMAIL = "spikeydeevip@gmail.com";
+const SUPPORT_EMAIL = "spikeydeefilms@gmail.com";
 const BILLING_SUPPORT_EMAIL = "consumersupport@ccbill.com";
 const BILLING_SUPPORT_PHONE = "888-596-9279";
-const COMPLAINTS_EMAIL = "spikeydeevip@gmail.com";
+const COMPLAINTS_EMAIL = "spikeydeefilms@gmail.com";
 const BUSINESS_NAME = "Spikeydee VIP";
 const BUSINESS_PRINCIPAL = "Noah Wayne Curd";
 const BUSINESS_CITY = "Las Vegas";
@@ -5109,7 +5109,7 @@ function CustomVideoRequestPage({ onBack }: { onBack: () => void }) {
     ].join("\n");
 
     setSubmitted(true);
-    window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = `mailto:spikeydeefilms@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
   const fieldStyle: CSSProperties = {
