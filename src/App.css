@@ -8134,3 +8134,10 @@ main .content-section textarea::placeholder {
     background-color: #111111 !important;
   }
 }
+@media (max-width: 640px) {
+  .custom-video-page h1 {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    opacity: 1 !important;
+  }
+}
