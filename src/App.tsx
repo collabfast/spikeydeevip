@@ -5145,16 +5145,18 @@ function CustomVideoRequestPage({ onBack }: { onBack: () => void }) {
           }}
         >
           <span className="section-kicker">CUSTOM VIDEO REQUEST</span>
-          <h1
-            style={{
-              margin: "10px 0 10px",
-              fontSize: "clamp(30px, 6vw, 52px)",
-              lineHeight: 1,
-              letterSpacing: "-.035em",
-            }}
-          >
-            REQUEST A CUSTOM VIDEO
-          </h1>
+        <h1
+  style={{
+    margin: "10px 0 10px",
+    fontSize: "clamp(30px, 6vw, 52px)",
+    lineHeight: 1,
+    letterSpacing: "-.035em",
+    color: "#ffffff",
+    WebkitTextFillColor: "#ffffff",
+  }}
+>
+  REQUEST A CUSTOM VIDEO
+</h1>
           <p
             style={{
               margin: "0 0 28px",
