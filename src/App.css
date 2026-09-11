@@ -8081,34 +8081,6 @@ main .content-section textarea::placeholder {
    ========================================================= */
 
 @media (max-width: 640px) {
-  .public-home-slideshow {
-    width: 100vw !important;
-    max-width: none !important;
-
-    aspect-ratio: 1 / 1 !important;
-    height: auto !important;
-    min-height: 0 !important;
-    max-height: none !important;
-
-    margin-left: calc(50% - 50vw) !important;
-    margin-right: calc(50% - 50vw) !important;
-    margin-top: 0 !important;
-
-    border-radius: 0 !important;
-    border-left: 0 !important;
-    border-right: 0 !important;
-
-    overflow: hidden !important;
-  }
-
-  .public-home-slide {
-    width: 100% !important;
-    height: 100% !important;
-    object-fit: cover !important;
-    border-radius: 0 !important;
-  }
-}
-@media (max-width: 640px) {
   .custom-video-page,
   .custom-video-page * {
     color: #ffffff !important;
