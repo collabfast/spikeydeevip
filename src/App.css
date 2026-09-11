@@ -8113,3 +8113,12 @@ main .content-section textarea::placeholder {
     opacity: 1 !important;
   }
 }
+@media (max-width: 640px) {
+  .custom-video-page h1,
+  .custom-video-page .custom-video-title {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    opacity: 1 !important;
+    text-shadow: none !important;
+  }
+}
