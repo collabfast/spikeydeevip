@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
-import type { FormEvent, ReactNode } from "react";
+import type { CSSProperties, FormEvent, ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import * as tus from "tus-js-client";
 
@@ -80,6 +80,7 @@ type HeaderNavTab =
   | "videos"
   | "performers"
   | "apply"
+  | "custom"
   | "plans";
 
 type ViewMode =
@@ -90,6 +91,7 @@ type ViewMode =
   | "account"
   | "studio"
   | "apply"
+  | "custom"
   | "legal";
 
 type LegalPageKey =
@@ -5055,6 +5057,242 @@ function ApplyToModelPage({ onBack }: { onBack: () => void }) {
               </button>
             </form>
           )}
+        </section>
+      </div>
+    </main>
+  );
+}
+
+/* =========================================================
+   CUSTOM VIDEO REQUEST
+   ========================================================= */
+
+function CustomVideoRequestPage({ onBack }: { onBack: () => void }) {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [videoType, setVideoType] = useState("");
+  const [details, setDetails] = useState("");
+  const [error, setError] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+
+  const submitCustomRequest = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError("");
+    setSubmitted(false);
+
+    const cleanName = name.trim();
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanVideoType = videoType.trim();
+    const cleanDetails = details.trim();
+
+    if (!cleanName || !cleanEmail || !cleanVideoType || !cleanDetails) {
+      setError("Complete every field before submitting your request.");
+      return;
+    }
+
+    const emailLooksValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail);
+    if (!emailLooksValid) {
+      setError("Enter a valid email address so we can reply to your request.");
+      return;
+    }
+
+    const subject = `Custom Video Request — ${cleanVideoType}`;
+    const body = [
+      "CUSTOM VIDEO REQUEST",
+      "",
+      `Name: ${cleanName}`,
+      `Email: ${cleanEmail}`,
+      `Video Type: ${cleanVideoType}`,
+      "",
+      "Request Details:",
+      cleanDetails,
+    ].join("\n");
+
+    setSubmitted(true);
+    window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
+
+  const fieldStyle: CSSProperties = {
+    width: "100%",
+    minHeight: "50px",
+    padding: "0 14px",
+    borderRadius: "10px",
+    border: "1px solid rgba(255,255,255,.12)",
+    background: "#0b0b0c",
+    color: "#fff",
+    font: "inherit",
+    boxSizing: "border-box",
+    outline: "none",
+  };
+
+  return (
+    <main
+      style={{
+        minHeight: "calc(100vh - 90px)",
+        padding: "clamp(28px, 5vw, 70px) clamp(18px, 4vw, 56px) 70px",
+        background:
+          "radial-gradient(circle at 50% 0%, rgba(231,187,69,.09), transparent 30%), #050505",
+      }}
+    >
+      <div style={{ width: "min(820px, 100%)", margin: "0 auto" }}>
+        <section
+          style={{
+            padding: "clamp(24px, 5vw, 42px)",
+            border: "1px solid rgba(231,187,69,.20)",
+            borderRadius: "18px",
+            background: "rgba(12,12,13,.96)",
+            boxShadow: "0 28px 80px rgba(0,0,0,.45)",
+          }}
+        >
+          <span className="section-kicker">CUSTOM VIDEO REQUEST</span>
+          <h1
+            style={{
+              margin: "10px 0 10px",
+              fontSize: "clamp(30px, 6vw, 52px)",
+              lineHeight: 1,
+              letterSpacing: "-.035em",
+            }}
+          >
+            REQUEST A CUSTOM VIDEO
+          </h1>
+          <p
+            style={{
+              margin: "0 0 28px",
+              color: "var(--text-muted)",
+              lineHeight: 1.65,
+              maxWidth: "680px",
+            }}
+          >
+            Tell us what you want made. Your email is required so the studio can
+            reply with availability, pricing, and next steps.
+          </p>
+
+          <form onSubmit={submitCustomRequest} style={{ display: "grid", gap: "18px" }}>
+            <label style={{ display: "grid", gap: "8px" }}>
+              <span style={{ fontWeight: 800, fontSize: "13px" }}>NAME</span>
+              <input
+                type="text"
+                required
+                autoComplete="name"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                placeholder="Your name"
+                style={fieldStyle}
+              />
+            </label>
+
+            <label style={{ display: "grid", gap: "8px" }}>
+              <span style={{ fontWeight: 800, fontSize: "13px" }}>EMAIL *</span>
+              <input
+                type="email"
+                required
+                autoComplete="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="you@example.com"
+                aria-label="Email address"
+                style={fieldStyle}
+              />
+              <span style={{ color: "var(--text-dim)", fontSize: "11px" }}>
+                We use this address to reply about your custom request.
+              </span>
+            </label>
+
+            <label style={{ display: "grid", gap: "8px" }}>
+              <span style={{ fontWeight: 800, fontSize: "13px" }}>VIDEO TYPE</span>
+              <select
+                required
+                value={videoType}
+                onChange={(event) => setVideoType(event.target.value)}
+                style={{ ...fieldStyle, appearance: "auto" }}
+              >
+                <option value="">Choose a video type</option>
+                <option value="Solo custom video">Solo custom video</option>
+                <option value="Personalized video">Personalized video</option>
+                <option value="Fetish custom">Fetish custom</option>
+                <option value="Other custom request">Other custom request</option>
+              </select>
+            </label>
+
+            <label style={{ display: "grid", gap: "8px" }}>
+              <span style={{ fontWeight: 800, fontSize: "13px" }}>REQUEST DETAILS</span>
+              <textarea
+                required
+                value={details}
+                onChange={(event) => setDetails(event.target.value)}
+                placeholder="Describe the custom video you want, including preferred length, theme, name usage, or other details."
+                rows={8}
+                style={{
+                  ...fieldStyle,
+                  minHeight: "180px",
+                  padding: "14px",
+                  resize: "vertical",
+                  lineHeight: 1.55,
+                }}
+              />
+            </label>
+
+            {error && (
+              <p
+                role="alert"
+                style={{
+                  margin: 0,
+                  padding: "12px 14px",
+                  borderRadius: "10px",
+                  border: "1px solid rgba(255,90,90,.30)",
+                  background: "rgba(120,20,20,.16)",
+                  color: "#ff9b9b",
+                  lineHeight: 1.5,
+                }}
+              >
+                {error}
+              </p>
+            )}
+
+            {submitted && !error && (
+              <p
+                role="status"
+                style={{
+                  margin: 0,
+                  padding: "12px 14px",
+                  borderRadius: "10px",
+                  border: "1px solid rgba(231,187,69,.28)",
+                  background: "rgba(231,187,69,.06)",
+                  color: "#fff",
+                  lineHeight: 1.5,
+                }}
+              >
+                Your email app should open with the request filled in. Send that
+                email to finish submitting your request.
+              </p>
+            )}
+
+            <div
+              style={{
+                display: "flex",
+                gap: "12px",
+                flexWrap: "wrap",
+                alignItems: "center",
+              }}
+            >
+              <button
+                type="submit"
+                className="primary-button"
+                style={{ minHeight: "50px", padding: "0 24px" }}
+              >
+                SUBMIT CUSTOM REQUEST →
+              </button>
+
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={onBack}
+                style={{ minHeight: "50px" }}
+              >
+                ← BACK TO SITE
+              </button>
+            </div>
+          </form>
         </section>
       </div>
     </main>
@@ -11826,6 +12064,7 @@ type SiteHeaderProps = {
   onSearch: (event: FormEvent<HTMLFormElement>) => void;
   onHome: () => void;
   onApply: () => void;
+  onCustomRequest: () => void;
   activeNav: HeaderNavTab;
   onActiveNavChange: (tab: HeaderNavTab) => void;
   onLegal: (page: LegalPageKey) => void;
@@ -11849,6 +12088,7 @@ function SiteHeader({
   onSearch,
   onHome,
   onApply,
+  onCustomRequest,
   activeNav,
   onActiveNavChange,
   onLegal,
@@ -11986,6 +12226,19 @@ function SiteHeader({
     }}
   >
     APPLY
+  </button>
+
+  <button
+    type="button"
+    aria-current={activeNav === "custom" ? "page" : undefined}
+    className={desktopNavButtonClass("custom")}
+    onClick={() => {
+      closeMenu();
+      onActiveNavChange("custom");
+      onCustomRequest();
+    }}
+  >
+    CUSTOM
   </button>
 
   <button
@@ -12130,6 +12383,25 @@ function SiteHeader({
               }}
             >
               APPLY TO MODEL
+            </button>
+
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => {
+                closeMenu();
+                onActiveNavChange("custom");
+                onCustomRequest();
+              }}
+              style={{
+                minHeight: "54px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                textAlign: "center",
+              }}
+            >
+              CUSTOM VIDEO
             </button>
 
             <button
@@ -13395,6 +13667,14 @@ const [, setActiveBrandStartIndex] = useState(0);
         return;
       }
 
+      if (path === "/custom-video") {
+        setAuthOpen(false);
+        setPasswordResetOpen(false);
+        setViewMode("custom");
+        setActiveNav("custom");
+        return;
+      }
+
       if (path === "/account") {
         setAuthOpen(false);
         setPasswordResetOpen(false);
@@ -14493,6 +14773,21 @@ const loadPublicHeroSettings = async () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const showCustomRequest = () => {
+    setActiveNav("custom");
+
+    if (window.location.pathname !== "/custom-video") {
+      window.history.pushState({}, "", "/custom-video");
+    }
+
+    setSelectedItem(null);
+    setSearchOpen(false);
+    setMenuOpen(false);
+    setViewMode("custom");
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const showStudio =
     () => {
       if (
@@ -14679,6 +14974,9 @@ const loadPublicHeroSettings = async () => {
         onApply={
           showApply
         }
+        onCustomRequest={
+          showCustomRequest
+        }
         activeNav={activeNav}
         onActiveNavChange={setActiveNav}
         onLegal={
@@ -14723,6 +15021,8 @@ const loadPublicHeroSettings = async () => {
         />
       ) : viewMode === "apply" ? (
         <ApplyToModelPage onBack={goHome} />
+      ) : viewMode === "custom" ? (
+        <CustomVideoRequestPage onBack={goHome} />
       ) : viewMode ===
         "detail" &&
       selectedItem ? (
