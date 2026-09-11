@@ -8108,3 +8108,28 @@ main .content-section textarea::placeholder {
     border-radius: 0 !important;
   }
 }
+@media (max-width: 640px) {
+  .custom-video-page,
+  .custom-video-page h1,
+  .custom-video-page h2,
+  .custom-video-page h3,
+  .custom-video-page p,
+  .custom-video-page label,
+  .custom-video-page span {
+    color: #fff !important;
+  }
+
+  .custom-video-page input,
+  .custom-video-page select,
+  .custom-video-page textarea {
+    color: #fff !important;
+    background: #111 !important;
+    -webkit-text-fill-color: #fff !important;
+  }
+
+  .custom-video-page input::placeholder,
+  .custom-video-page textarea::placeholder {
+    color: #888 !important;
+    opacity: 1;
+  }
+}
