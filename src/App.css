@@ -8110,26 +8110,27 @@ main .content-section textarea::placeholder {
 }
 @media (max-width: 640px) {
   .custom-video-page,
-  .custom-video-page h1,
-  .custom-video-page h2,
-  .custom-video-page h3,
-  .custom-video-page p,
-  .custom-video-page label,
-  .custom-video-page span {
-    color: #fff !important;
+  .custom-video-page * {
+    color: #ffffff !important;
   }
 
   .custom-video-page input,
   .custom-video-page select,
   .custom-video-page textarea {
-    color: #fff !important;
-    background: #111 !important;
-    -webkit-text-fill-color: #fff !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    background-color: #111111 !important;
   }
 
   .custom-video-page input::placeholder,
   .custom-video-page textarea::placeholder {
-    color: #888 !important;
-    opacity: 1;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    opacity: 0.7 !important;
+  }
+
+  .custom-video-page option {
+    color: #ffffff !important;
+    background-color: #111111 !important;
   }
 }
