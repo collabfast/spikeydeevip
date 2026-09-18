@@ -12894,11 +12894,21 @@ const legalCopy: Record<LegalPageKey, LegalPageContent> = {
               us to identify the material.
             </p>
             <p>
-              You may also submit a complaint or takedown request through the{" "}
-              <a href={CCBILL_COMPLAINT_FORM} rel="nofollow noreferrer" target="_blank">
-                CCBill complaints/takedown request form
-              </a>.
-            </p>
+  You may also submit a complaint or takedown request through the{" "}
+  <a
+    href={CCBILL_COMPLAINT_FORM}
+    rel="nofollow noreferrer"
+    target="_blank"
+    style={{
+      color: "#d4af37",
+      textDecoration: "underline",
+      fontWeight: 700,
+      cursor: "pointer",
+    }}
+  >
+    CCBill complaints/takedown request form
+  </a>.
+</p>
           </div>
         ),
       },
