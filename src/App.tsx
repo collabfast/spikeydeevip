@@ -12936,37 +12936,33 @@ const legalCopy: Record<LegalPageKey, LegalPageContent> = {
         ),
       },
       {
-        heading: "Appeal Procedure for Depicted Persons",
-        body: (
-          <div>
-            <p>
-              Any person depicted in content may appeal a decision and request
-              removal by contacting <strong>{COMPLAINTS_EMAIL}</strong>. The
-              appeal should identify the content and explain the basis for the
-              request, including any claim that consent was not given, was
-              withdrawn where legally effective, or is void under applicable
-              law.
-            </p>
-            <p>
-              The appeal will be reviewed using available identity, age, consent,
-              production, and other relevant records. If the investigation
-              determines that consent was not given or is void under applicable
-              law, the content will be removed.
-            </p>
-          </div>
-        ),
-      },
-      {
-        heading: "Disagreement Regarding an Appeal",
-        body: (
-          <p>
-            If a depicted person disagrees with the outcome of an appeal, the
-            disagreement may be submitted to a neutral body for resolution at
-            Spikeydee VIP's expense. Spikeydee VIP will cooperate with the
-            neutral review and implement the resulting determination as required.
-          </p>
-        ),
-      },
+      heading: "Appeal Procedure for Depicted Persons",
+body: (
+  <div>
+    <p>
+      Any person depicted in content may appeal a decision and request
+      removal by contacting <strong>spikeydeefilms@gmail.com</strong>. The
+      appeal should identify the content and explain the basis for the
+      request, including any claim that consent was not given or is void
+      under applicable law.
+    </p>
+
+    <p>
+      The appeal will be reviewed using available identity, age, consent,
+      production, and other relevant records. If the investigation
+      determines that consent was not given or is void under applicable
+      law, the content will be removed.
+    </p>
+
+    <p>
+      If the depicted person disagrees with the outcome of the appeal, the
+      disagreement may be submitted to a neutral body for resolution at
+      Spikeydee VIP&apos;s expense. Spikeydee VIP will cooperate with the
+      neutral review and implement the resulting determination as required.
+    </p>
+  </div>
+),
+}, 
       {
         heading: "Urgent Safety or Illegal Content",
         body: (
@@ -13193,9 +13189,6 @@ function LegalPage({ page, onBack, onLegal }: LegalPageProps) {
                 fontSize: "12px",
               }}
             >
-              Development compliance copy. Final production language should match
-              the studio's actual business practices, vendors, records, and
-              processor requirements.
             </div>
           </article>
         </section>
