@@ -1955,17 +1955,21 @@ function ContentCard({
   favoriteBusy = false,
 }: ContentCardProps) {
   return (
-    <article className="content-card">
-      <button
-        type="button"
-        className="card-image"
-        onClick={() =>
-          onOpen(
-            item
-          )
-        }
-        aria-label={`Open ${item.title}`}
-      >
+<article
+  className="content-card"
+  style={{
+    position: "relative",
+    overflow: "hidden",
+    borderRadius: 0,
+  }}
+>
+  <button
+    type="button"
+    className="card-image"
+    style={{ borderRadius: 0 }}
+    onClick={() => onOpen(item)}
+    aria-label={`Open ${item.title}`}
+  >
         {item.thumbnailUrl ? (
           <img
             src={item.thumbnailUrl}
@@ -2059,61 +2063,46 @@ function ContentCard({
           }
         </span>
       </button>
+<div
+  style={{
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 5,
+    display: "flex",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    gap: "12px",
+    padding: "48px 16px 14px",
+    background:
+      "linear-gradient(to top, rgba(0,0,0,.9), rgba(0,0,0,0))",
+    color: "#fff",
+  }}
+>
+  <div>
+    <h3 style={{ margin: 0, fontSize: "16px" }}>
+      {item.title}
+    </h3>
 
-      <div className="card-info">
-        <h3>
-          {
-            item.title
-          }
-        </h3>
+    <p style={{ margin: "4px 0 0", fontSize: "13px", opacity: 0.8 }}>
+      {item.subtitle}
+    </p>
+  </div>
 
-        <p>
-          {
-            item.subtitle
-          }
-        </p>
-
-        <div className="card-actions">
-          <button
-            type="button"
-            className="small-button"
-            onClick={() =>
-              onOpen(
-                item
-              )
-            }
-          >
-            {canWatch
-              ? "Watch"
-              : "Unlock"}
-          </button>
-
-          <button
-            type="button"
-            className={`favorite-button ${
-              isFavorite
-                ? "is-favorite"
-                : ""
-            }`}
-            disabled={
-              favoriteBusy
-            }
-            onClick={() =>
-              onToggleFavorite(
-                item
-              )
-            }
-          >
-            {favoriteBusy
-              ? "…"
-              : isFavorite
-                ? "♥"
-                : "♡"}
-          </button>
-        </div>
-      </div>
+  <button
+    type="button"
+    className={`favorite-button ${
+      isFavorite ? "is-favorite" : ""
+    }`}
+    disabled={favoriteBusy}
+    onClick={() => onToggleFavorite(item)}
+  >
+    {favoriteBusy ? "…" : isFavorite ? "♥" : "♡"}
+  </button>
+</div>
     </article>
-  );
+      );
 }
 
 /* =========================================================
@@ -2415,6 +2404,12 @@ type VideoDetailProps = {
   onBack:
     () => void;
 
+      hasNextVideo:
+    boolean;
+
+  onNextVideo:
+    () => void;
+
   onOpenAccess:
     () => void;
 
@@ -2437,6 +2432,8 @@ function VideoDetail({
   membership,
   adminAccess,
   onBack,
+  hasNextVideo,
+  onNextVideo,
   onOpenAccess,
   favorites,
   onToggleFavorite,
@@ -2706,7 +2703,15 @@ function VideoDetail({
                   : "🔒 Unlock Access"}
               </button>
             )}
-
+{canWatch && hasNextVideo && (
+  <button
+    type="button"
+    className="secondary-button"
+    onClick={onNextVideo}
+  >
+    Skip to Next →
+  </button>
+)}
             <button
               type="button"
               className={`secondary-button ${
@@ -14530,7 +14535,26 @@ const loadPublicHeroSettings = async () => {
           item.contentId
         )
     );
+  const playableCatalog = publicCatalog.filter(
+    (candidate) =>
+      adminAccess || canWatchVideo(candidate)
+  );
 
+  const currentPlayableIndex = selectedItem
+    ? playableCatalog.findIndex(
+        (candidate) =>
+          candidate.contentId === selectedItem.contentId
+      )
+    : -1;
+
+  const nextPlayableItem =
+    currentPlayableIndex >= 0 &&
+    playableCatalog.length > 1
+      ? playableCatalog[
+          (currentPlayableIndex + 1) %
+            playableCatalog.length
+        ]
+      : null;
   /* =======================================================
      FAVORITE ACTION
      ======================================================= */
@@ -15047,6 +15071,12 @@ const loadPublicHeroSettings = async () => {
         "detail" &&
       selectedItem ? (
         <VideoDetail
+        hasNextVideo={Boolean(nextPlayableItem)}
+onNextVideo={() => {
+  if (nextPlayableItem) {
+    openItem(nextPlayableItem);
+  }
+}}
           item={
             selectedItem
           }
