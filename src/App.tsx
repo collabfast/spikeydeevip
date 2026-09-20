@@ -2545,22 +2545,32 @@ function VideoDetail({
           ← Back to Browse
         </button>
 
-        <div className="video-player">
-          {canWatch && item.bunnyVideoId ? (
+<div
+  className="video-player"
+  style={{
+    position: "relative",
+    overflow: "hidden",
+    aspectRatio: "16 / 9",
+  }}
+>          {canWatch && item.bunnyVideoId ? (
             bunnyEmbedUrl ? (
               <iframe
                 title={`${item.title} video player`}
                 src={bunnyEmbedUrl}
                 allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen"
                 allowFullScreen
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  minHeight: "560px",
-                  border: 0,
-                  display: "block",
-                  background: "#000",
-                }}
+              style={{
+  position: "absolute",
+  inset: 0,
+  width: "100%",
+  height: "100%",
+  minHeight: 0,
+  border: 0,
+  display: "block",
+  background: "#000",
+  transform: "scale(1.05)",
+  transformOrigin: "center",
+}}
               />
             ) : (
   <div className="video-player-placeholder">
