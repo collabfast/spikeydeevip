@@ -2568,7 +2568,7 @@ function VideoDetail({
   border: 0,
   display: "block",
   background: "#000",
-  transform: "scale(1.08)",
+  transform: "scale(1.04)",
   transformOrigin: "center",
 }}
               />
