@@ -1001,7 +1001,7 @@ function AccessModal({
                 </div>
 
                 <h3>
-                  Premium Releases
+                  Hours of Premium Releases
                 </h3>
 
                 <p>
@@ -11520,12 +11520,9 @@ const saveHeroSettings = async () => {
                         const governmentIds = performerDocs.filter(
                           (document) => document.document_type === "government_id"
                         );
-                        const selectableDocs = performerDocs.filter(
-                          (document) =>
-                            document.document_type !== "government_id" &&
-                            (!document.production_id ||
-                              document.production_id === editingComplianceProductionId)
-                        );
+                     const selectableDocs = performerDocs.filter(
+  (document) => document.document_type !== "government_id"
+);
 
                         return (
                           <div
