@@ -56,6 +56,8 @@ type CheckoutActivationResponse = {
 
 type ContentItem = {
   contentId: string;
+  contentType?: "video" | "photo_set";
+photoCount?: number;
   slug?: string;
   title: string;
   subtitle: string;
@@ -113,6 +115,8 @@ type Profile = {
 
 type VideoRecord = {
   id: string;
+  content_type?: "video" | "photo_set";
+  photo_count?: number | null;
   slug: string;
   title: string;
   subtitle: string | null;
@@ -140,6 +144,12 @@ type VideoRecord = {
   created_at: string;
   updated_at: string;
   created_by: string | null;
+    photo_set_images?: {
+    id: string;
+    storage_path: string;
+    sort_order: number;
+    alt_text: string | null;
+  }[];
 };
 
 type HomepageBanner = {
@@ -331,6 +341,7 @@ type VideoFormState = {
   performer: string;
   seriesName: string;
   badge: string;
+  contentType: "video" | "photo_set";
   accessTier: VideoAccessTier;
   isPublished: boolean;
   isFeatured: boolean;
@@ -398,6 +409,7 @@ const EMPTY_VIDEO_FORM: VideoFormState = {
   performer: "",
   seriesName: "",
   badge: "",
+  contentType: "video",
   accessTier: "monthly_only",
   isPublished: false,
   isFeatured: false,
@@ -586,7 +598,9 @@ function videoRecordToContentItem(
   video: VideoRecord
 ): ContentItem {
   return {
-    contentId: video.id,
+   contentId: video.id,
+contentType: video.content_type === "photo_set" ? "photo_set" : "video",
+photoCount: video.photo_count ?? 0,
     slug: video.slug,
     title: video.title,
     subtitle: video.subtitle ?? video.category ?? "Spikeydee VIP",
@@ -1956,7 +1970,7 @@ function ContentCard({
 }: ContentCardProps) {
   return (
 <article
-  className="content-card"
+ 
   style={{
     position: "relative",
     overflow: "hidden",
@@ -1966,7 +1980,10 @@ function ContentCard({
   <button
     type="button"
     className="card-image"
-    style={{ borderRadius: 0 }}
+   style={{
+  borderRadius: 0,
+  aspectRatio: item.contentType === "photo_set" ? "auto" : "16 / 9",
+}}
     onClick={() => onOpen(item)}
     aria-label={`Open ${item.title}`}
   >
@@ -1974,13 +1991,22 @@ function ContentCard({
           <img
             src={item.thumbnailUrl}
             alt={`${item.title} thumbnail`}
-            style={{
-              position: "absolute",
-              inset: 0,
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-            }}
+           style={
+  item.contentType === "photo_set"
+    ? {
+        display: "block",
+        width: "100%",
+        height: "auto",
+        objectFit: "contain",
+      }
+    : {
+        position: "absolute",
+        inset: 0,
+        width: "100%",
+        height: "100%",
+        objectFit: "cover",
+      }
+} 
           />
         ) : item.video ? (
           <video
@@ -2012,50 +2038,11 @@ function ContentCard({
           </span>
         )}
 
-        <span
-          style={{
-            position:
-              "absolute",
-
-            top:
-              "14px",
-
-            right:
-              "14px",
-
-            padding:
-              "7px 10px",
-
-            borderRadius:
-              "8px",
-
-            background:
-              "rgba(0,0,0,.76)",
-
-            color:
-              "#fff",
-
-            fontSize:
-              "11px",
-
-            fontWeight:
-              800,
-
-            zIndex:
-              4,
-          }}
-        >
-          {item.accessTier ===
-          "monthly_only"
-            ? "MONTHLY VIP"
-            : "2-DAY + VIP"}
-        </span>
-
-        <span className="card-play">
-          {canWatch
-            ? "▶"
-            : "🔒"}
-        </span>
+       {item.contentType !== "photo_set" && (
+  <span className="card-play">
+    {canWatch ? "▶" : "🔒"}
+  </span>
+)}
 
         <span className="card-duration">
           {
@@ -2075,8 +2062,7 @@ function ContentCard({
     justifyContent: "space-between",
     gap: "12px",
     padding: "48px 16px 14px",
-    background:
-      "linear-gradient(to top, rgba(0,0,0,.9), rgba(0,0,0,0))",
+   background: "transparent",
     color: "#fff",
   }}
 >
@@ -2088,18 +2074,7 @@ function ContentCard({
     <p style={{ margin: "4px 0 0", fontSize: "13px", opacity: 0.8 }}>
       {item.subtitle}
     </p>
-  </div>
-
-  <button
-    type="button"
-    className={`favorite-button ${
-      isFavorite ? "is-favorite" : ""
-    }`}
-    disabled={favoriteBusy}
-    onClick={() => onToggleFavorite(item)}
-  >
-    {favoriteBusy ? "…" : isFavorite ? "♥" : "♡"}
-  </button>
+</div>
 </div>
     </article>
       );
@@ -2154,76 +2129,104 @@ function ContentRow({
   onToggleFavorite,
   favoriteBusyIds,
 }: ContentRowProps) {
+  const [mediaFilter, setMediaFilter] = useState<
+  "all" | "video" | "photo_set"
+>("all");
+
+const filteredItems = items.filter(
+  (item) => mediaFilter === "all" || item.contentType === mediaFilter,
+);
+  const renderCard = (item: ContentItem) => (
+    <ContentCard
+      key={item.contentId}
+      item={item}
+      canWatch={canWatchVideo(item)}
+      onOpen={onOpen}
+      isFavorite={favorites.includes(item.contentId)}
+      onToggleFavorite={onToggleFavorite}
+      favoriteBusy={favoriteBusyIds.includes(item.contentId)}
+    />
+  );
+
+  const layout: ReactNode[] = [];
+
+ for (let index = 0; index < filteredItems.length;) {
+  const item = filteredItems[index];
+  const nextTwo = filteredItems.slice(index + 1, index + 3);
+
+    if (
+      item.contentType === "photo_set" &&
+      nextTwo.length === 2 &&
+      nextTwo.every((candidate) => candidate.contentType !== "photo_set")
+    ) {
+      layout.push(
+        <Fragment key={item.contentId}>
+          {renderCard(item)}
+
+          <div
+            style={{
+              display: "grid",
+              gap: "18px",
+              alignContent: "start",
+            }}
+          >
+            {nextTwo.map(renderCard)}
+          </div>
+        </Fragment>
+      );
+
+      index += 3;
+    } else {
+      layout.push(renderCard(item));
+      index += 1;
+    }
+  }
+
   return (
     <section className="content-section">
       <div className="section-heading">
         <div>
-          <span className="section-kicker">
-            SPIKEYDEE VIP
-          </span>
-
-          <h2>
-            {
-              title
-            }
-          </h2>
+          <span className="section-kicker">SPIKEYDEE VIP</span>
+          <h2>{title}</h2>
         </div>
 
-        <button
-          type="button"
-          className="view-all"
-          onClick={() =>
-            document
-              .getElementById(
-                sectionId
-              )
-              ?.scrollIntoView({
-                behavior:
-                  "smooth",
-              })
-          }
-        >
-          View all →
-        </button>
+       <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+  <select
+    aria-label="Filter releases"
+    value={mediaFilter}
+    onChange={(event) =>
+      setMediaFilter(
+        event.target.value as "all" | "video" | "photo_set",
+      )
+    }
+    style={{
+      background: "#111",
+      border: "1px solid #333",
+      color: "#fff",
+      padding: "8px 10px",
+      fontSize: "12px",
+    }}
+  >
+    <option value="all">All media</option>
+    <option value="video">Videos</option>
+    <option value="photo_set">Photos</option>
+  </select>
+
+  <button
+    type="button"
+    className="view-all"
+    onClick={() =>
+      document
+        .getElementById(sectionId)
+        ?.scrollIntoView({ behavior: "smooth" })
+    }
+  >
+    View all →
+  </button>
+</div>
       </div>
 
-      <div className="card-row">
-        {items.map(
-          (
-            item
-          ) => (
-            <ContentCard
-              key={
-                item.contentId
-              }
-              item={
-                item
-              }
-              canWatch={
-                canWatchVideo(
-                  item
-                )
-              }
-              onOpen={
-                onOpen
-              }
-              isFavorite={
-                favorites.includes(
-                  item.contentId
-                )
-              }
-              onToggleFavorite={
-                onToggleFavorite
-              }
-              favoriteBusy={
-                favoriteBusyIds.includes(
-                  item.contentId
-                )
-              }
-            />
-          )
-        )}
-      </div>
+      <div className="card-row">{layout}</div>
     </section>
   );
 }
@@ -2547,9 +2550,23 @@ function VideoDetail({
   style={{
     position: "relative",
     overflow: "hidden",
-    aspectRatio: "16 / 9",
+    
+   aspectRatio: item.contentType === "photo_set" ? "auto" : "16 / 9",
   }}
->          {canWatch && item.bunnyVideoId ? (
+>        {item.contentType === "photo_set" && item.thumbnailUrl ? (
+  <img
+    src={item.thumbnailUrl}
+    alt={`${item.title} photo set cover`}
+    style={{
+      display: "block",
+      width: "100%",
+      height: "auto",
+      maxHeight: "80vh",
+      objectFit: "contain",
+      background: "#000",
+    }}
+  />
+) : canWatch && item.bunnyVideoId ? (
             bunnyEmbedUrl ? (
               <iframe
                 title={`${item.title} video player`}
@@ -5421,6 +5438,7 @@ function StudioDashboard({
   const [editingVideo, setEditingVideo] = useState<VideoRecord | null>(null);
   const [form, setForm] = useState<VideoFormState>(EMPTY_VIDEO_FORM);
   const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [photoSetFiles, setPhotoSetFiles] = useState<File[]>([]);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   const [message, setMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
@@ -5791,9 +5809,8 @@ const loadProductionComplianceForVideo = async (videoId: string) => {
   }
 
   if (!production) {
-    resetProductionComplianceForm();
-    return;
-  }
+  return;
+}
 
   const typedProduction = production as ComplianceProduction;
   setEditingComplianceProductionId(typedProduction.id);
@@ -7444,6 +7461,7 @@ const saveHeroSettings = async () => {
     setEditingVideo(null);
     setForm(EMPTY_VIDEO_FORM);
     setVideoFile(null);
+    setPhotoSetFiles([]);
     setThumbnailFile(null);
     setMessage("");
     setErrorMessage("");
@@ -7466,6 +7484,7 @@ const saveHeroSettings = async () => {
       performer: video.performer ?? "",
       seriesName: video.series ?? video.series_name ?? "",
       badge: video.badge ?? "",
+      contentType: video.content_type === "photo_set" ? "photo_set" : "video",
       accessTier: video.access_tier ?? "monthly_only",
       isPublished: Boolean(video.is_published),
       isFeatured: Boolean(video.is_featured),
@@ -7476,6 +7495,7 @@ const saveHeroSettings = async () => {
     setErrorMessage("");
     setUploadStatus("");
     setUploadProgress(0);
+    resetProductionComplianceForm();
     void loadProductionComplianceForVideo(video.id);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -7683,16 +7703,7 @@ const saveHeroSettings = async () => {
       }
     }
 
-    const isTryingToPublishNow =
-      form.isPublished && !Boolean(editingVideo?.is_published);
 
-    if (isTryingToPublishNow && !compliancePublishReady) {
-      setErrorMessage(
-        "Publishing is locked until the server compliance checklist is complete and an admin marks the production COMPLETE. Save as a draft first."
-      );
-      setSaving(false);
-      return;
-    }
 
     let savedVideoId = editingVideo?.id ?? null;
     let bunnyVideoId = editingVideo?.bunny_video_id ?? null;
@@ -7701,11 +7712,23 @@ const saveHeroSettings = async () => {
     let newThumbnailUrl: string | null = editingVideo?.thumbnail_url ?? null;
 
     try {
-      if (!editingVideo && !videoFile) {
-        throw new Error("Choose a video file before creating this catalog entry.");
-      }
+   if (
+  !editingVideo &&
+  form.contentType === "video" &&
+  !videoFile
+) {
+  throw new Error("Choose a video file before saving.");
+}
 
-      if (videoFile) {
+if (
+  !editingVideo &&
+  form.contentType === "photo_set" &&
+  photoSetFiles.length === 0
+) {
+  throw new Error("Choose at least one photo for this photo set.");
+}
+
+      if (form.contentType === "video" && videoFile) {
         const credentials = await requestBunnyUploadCredentials(title);
         await uploadToBunny(videoFile, title, credentials);
         bunnyVideoId = credentials.videoId;
@@ -7716,6 +7739,7 @@ const saveHeroSettings = async () => {
       newThumbnailUrl = await uploadThumbnailAsset(slug);
 
       const payload = {
+        content_type: form.contentType,
         slug,
         title,
         subtitle: form.subtitle.trim() || null,
@@ -7803,10 +7827,67 @@ const saveHeroSettings = async () => {
         savedVideoId = insertedVideo.id as string;
 
         setMessage(
-          "Video uploaded to Bunny Stream and saved as a draft. Complete the compliance review, then publish it."
+          form.contentType === "photo_set"
+  ? "Photo set saved as a draft. Complete the compliance review, then publish it."
+  : "Video uploaded to Bunny Stream and saved as a draft. Complete the compliance review, then publish it."
         );
       }
+if (form.contentType === "photo_set" && photoSetFiles.length > 0) {
+  if (!savedVideoId) {
+    throw new Error("Photo set record could not be created.");
+  }
 
+  setUploadStatus("Uploading photo set images…");
+
+  const imageRows: {
+    content_id: string;
+    storage_path: string;
+    sort_order: number;
+    alt_text: null;
+  }[] = [];
+
+  for (const [index, file] of photoSetFiles.entries()) {
+    const storagePath = `${savedVideoId}/${String(index + 1).padStart(
+      3,
+      "0"
+    )}-${safeFileName(file.name)}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("photo-sets")
+      .upload(storagePath, file, {
+        contentType: file.type,
+        upsert: false,
+      });
+
+    if (uploadError) {
+      throw uploadError;
+    }
+
+    imageRows.push({
+      content_id: savedVideoId,
+      storage_path: storagePath,
+      sort_order: index,
+      alt_text: null,
+    });
+  }
+
+  const { error: imagesError } = await supabase
+    .from("photo_set_images")
+    .insert(imageRows);
+
+  if (imagesError) {
+    throw imagesError;
+  }
+
+  const { error: countError } = await supabase
+    .from("videos")
+    .update({ photo_count: imageRows.length })
+    .eq("id", savedVideoId);
+
+  if (countError) {
+    throw countError;
+  }
+}
       if (savedVideoId && hasAnyComplianceInput) {
         setUploadStatus("Saving production compliance links…");
         await saveProductionCompliance(savedVideoId, title, slug);
@@ -7815,6 +7896,7 @@ const saveHeroSettings = async () => {
       setEditingVideo(null);
       setForm(EMPTY_VIDEO_FORM);
       setVideoFile(null);
+      setPhotoSetFiles([]);
       setThumbnailFile(null);
       setUploadStatus("");
       setUploadProgress(0);
@@ -7835,100 +7917,22 @@ const saveHeroSettings = async () => {
     }
   };
 
-  const togglePublished = async (video: VideoRecord) => {
-    setErrorMessage("");
+const togglePublished = async (video: VideoRecord) => {
+  setErrorMessage("");
 
-    // Unpublishing is always allowed. The compliance lock only protects the
-    // transition from draft -> published.
-    if (video.is_published) {
-      const { error } = await supabase
-        .from("videos")
-        .update({ is_published: false })
-        .eq("id", video.id);
+  const { error } = await supabase
+    .from("videos")
+    .update({ is_published: !video.is_published })
+    .eq("id", video.id);
 
-      if (error) return setErrorMessage(error.message);
-      await loadVideos();
-      await onCatalogChanged();
-      return;
-    }
+  if (error) {
+    setErrorMessage(`Could not update publishing: ${error.message}`);
+    return;
+  }
 
-    const { data: production, error: productionError } = await supabase
-      .from("compliance_productions")
-      .select("id, production_date, compliance_status")
-      .eq("video_id", video.id)
-      .maybeSingle();
-
-    if (productionError) {
-      setErrorMessage(productionError.message);
-      return;
-    }
-
-    if (!production?.id) {
-      setErrorMessage(
-        "Publishing blocked: this video does not have a linked production compliance record. Edit the video and complete Production & Compliance first."
-      );
-      return;
-    }
-
-    const { data: checkData, error: checkError } = await supabase.rpc(
-      "get_production_compliance_check",
-      { p_production_id: production.id }
-    );
-
-    if (checkError) {
-      setErrorMessage(
-        `Publishing blocked: could not verify compliance (${checkError.message}).`
-      );
-      return;
-    }
-
-    const check = checkData as ProductionComplianceCheck;
-
-    if (!check.publishReady) {
-      setErrorMessage(
-        "Publishing blocked: required records are missing or this production has not been marked COMPLETE."
-      );
-      return;
-    }
-
-    const performerIds = check.performers.map((performer) => performer.performerId);
-
-    const { data: performerRows, error: performerError } = await supabase
-      .from("compliance_performers")
-      .select("id, stage_name, date_of_birth")
-      .in("id", performerIds);
-
-    if (performerError) {
-      setErrorMessage(
-        `Publishing blocked: could not verify performer ages (${performerError.message}).`
-      );
-      return;
-    }
-
-    const underageAtProduction = (performerRows ?? []).find((performer) =>
-      !isAtLeast18OnDate(performer.date_of_birth, production.production_date)
-    );
-
-    if (underageAtProduction) {
-      setErrorMessage(
-        `Publishing blocked: ${underageAtProduction.stage_name} was not at least 18 on the production date.`
-      );
-      return;
-    }
-
-    const { error } = await supabase
-      .from("videos")
-      .update({ is_published: true })
-      .eq("id", video.id);
-
-    if (error) {
-      setErrorMessage(error.message);
-      return;
-    }
-
-    await loadVideos();
-    await onCatalogChanged();
-  };
+  await loadVideos();
+  await onCatalogChanged();
+};
 
   const toggleFeatured = async (video: VideoRecord) => {
     const { error } = await supabase
@@ -11360,8 +11364,47 @@ const saveHeroSettings = async () => {
             </p>
 
             <form onSubmit={handleSubmit} style={{ display: "grid", gap: "16px" }}>
-              <div style={uploadBoxStyle}>
-                <span className="section-kicker">BUNNY STREAM VIDEO</span>
+              <label style={{ display: "grid", gap: "8px" }}>
+  <span className="section-kicker">CONTENT TYPE</span>
+  <select
+    value={form.contentType}
+    onChange={(event) =>
+      setForm((current) => ({
+        ...current,
+        contentType: event.target.value as "video" | "photo_set",
+      }))
+    }
+    style={fieldStyle}
+  >
+    <option value="video">Video</option>
+    <option value="photo_set">Photo Set</option>
+  </select>
+</label>
+{form.contentType === "photo_set" && (
+  <div style={uploadBoxStyle}>
+    <span className="section-kicker">PHOTO SET IMAGES</span>
+    <h3>Choose Photos</h3>
+
+    <input
+      type="file"
+      accept="image/jpeg,image/png,image/webp,image/*"
+      multiple
+      onChange={(event) =>
+        setPhotoSetFiles(Array.from(event.target.files ?? []))
+      }
+      style={{ ...fieldStyle, paddingTop: "10px" }}
+    />
+
+    <p style={{ color: "var(--text-muted)", marginBottom: 0 }}>
+      {photoSetFiles.length > 0
+        ? `${photoSetFiles.length} photo${photoSetFiles.length === 1 ? "" : "s"} selected.`
+        : "Choose one or more photos for this set."}
+    </p>
+  </div>
+)}
+              {form.contentType === "video" && (
+  <div style={uploadBoxStyle}>
+    <span className="section-kicker">BUNNY STREAM VIDEO</span>
                 <h3>Choose Video File</h3>
                 <input
                   type="file"
@@ -11380,7 +11423,7 @@ const saveHeroSettings = async () => {
                   Resumable TUS uploads are intended for your longer production files and can resume after many network interruptions.
                 </p>
               </div>
-
+)}
               <div style={uploadBoxStyle}>
                 <span className="section-kicker">POSTER / THUMBNAIL</span>
                 <h3>Choose Poster Image</h3>
@@ -11514,13 +11557,15 @@ const saveHeroSettings = async () => {
                     placeholder="Production ID — e.g. SDV-2026-0001"
                     style={fieldStyle}
                   />
-                  <input
-                    type="date"
-                    value={productionDate}
-                    onChange={(event) => setProductionDate(event.target.value)}
-                    aria-label="Original production date"
-                    style={fieldStyle}
-                  />
+        <input
+  type="text"
+  inputMode="numeric"
+  placeholder="YYYY-MM-DD"
+  value={productionDate}
+  onChange={(event) => setProductionDate(event.currentTarget.value)}
+  aria-label="Original production date"
+  style={fieldStyle}
+/>
                 </div>
 
                 <div style={{ marginTop: "20px" }}>
@@ -11865,20 +11910,7 @@ const saveHeroSettings = async () => {
                     Featured
                   </label>
                   <label style={{ display: "flex", gap: "9px", alignItems: "center" }}>
-                    <input
-                      type="checkbox"
-                      checked={form.isPublished}
-                      disabled={!form.isPublished && !compliancePublishReady}
-                      onChange={(e) => {
-                        if (e.target.checked && !compliancePublishReady) {
-                          setErrorMessage(
-                            "Publishing is locked until compliance is COMPLETE and the server checklist is ready."
-                          );
-                          return;
-                        }
-                        updateForm("isPublished", e.target.checked);
-                      }}
-                    />{" "}
+            
                     Publish immediately
                   </label>
                 </div>
@@ -14195,6 +14227,8 @@ const loadPublicHeroSettings = async () => {
           .select(
             `
               id,
+              content_type,
+              photo_count,
               slug,
               title,
               subtitle,
@@ -14219,7 +14253,13 @@ const loadPublicHeroSettings = async () => {
               published_at,
               created_at,
               updated_at,
-              created_by
+              created_by,
+photo_set_images (
+  id,
+  storage_path,
+  sort_order,
+  alt_text
+)
             `
           )
           .eq(
@@ -14238,10 +14278,26 @@ const loadPublicHeroSettings = async () => {
           );
 
       if (!error) {
-        setPublicVideos(
-          (data ??
-            []) as VideoRecord[]
-        );
+    const catalogItems = ((data ?? []) as VideoRecord[]).flatMap(
+  (video) => {
+    if (video.content_type !== "photo_set") {
+      return [video];
+    }
+
+    return (video.photo_set_images ?? [])
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map((photo) => ({
+        ...video,
+        id: `${video.id}-${photo.id}`,
+        thumbnail_url: supabase.storage
+          .from("photo-sets")
+          .getPublicUrl(photo.storage_path).data.publicUrl,
+        photo_count: 1,
+      }));
+  },
+);
+
+setPublicVideos(catalogItems);
       } else {
         console.error(
           "Catalog error:",
