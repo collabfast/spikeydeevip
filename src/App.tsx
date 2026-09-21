@@ -1964,9 +1964,6 @@ function ContentCard({
   item,
   canWatch,
   onOpen,
-  isFavorite,
-  onToggleFavorite,
-  favoriteBusy = false,
 }: ContentCardProps) {
   return (
 <article
