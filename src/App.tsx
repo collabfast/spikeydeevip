@@ -2128,7 +2128,7 @@ function ContentRow({
 }: ContentRowProps) {
   const [mediaFilter, setMediaFilter] = useState<
   "all" | "video" | "photo_set"
->("all");
+>("video");
 
 const filteredItems = items.filter(
   (item) => item.contentType === mediaFilter,
