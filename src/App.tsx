@@ -2131,7 +2131,7 @@ function ContentRow({
 >("all");
 
 const filteredItems = items.filter(
-  (item) => mediaFilter === "all" || item.contentType === mediaFilter,
+  (item) => item.contentType === mediaFilter,
 );
   const renderCard = (item: ContentItem) => (
     <ContentCard
@@ -2204,7 +2204,7 @@ const filteredItems = items.filter(
       fontSize: "12px",
     }}
   >
-    <option value="all">All media</option>
+    
     <option value="video">Videos</option>
     <option value="photo_set">Photos</option>
   </select>
