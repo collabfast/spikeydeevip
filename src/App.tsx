@@ -5107,7 +5107,6 @@ function ApplyToModelPage({ onBack }: { onBack: () => void }) {
 function CustomVideoRequestPage({ onBack }: { onBack: () => void }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [videoType, setVideoType] = useState("");
   const [details, setDetails] = useState("");
   const [error, setError] = useState("");
   const [submitted, setSubmitted] = useState(false);
@@ -5119,10 +5118,9 @@ function CustomVideoRequestPage({ onBack }: { onBack: () => void }) {
 
     const cleanName = name.trim();
     const cleanEmail = email.trim().toLowerCase();
-    const cleanVideoType = videoType.trim();
     const cleanDetails = details.trim();
 
-    if (!cleanName || !cleanEmail || !cleanVideoType || !cleanDetails) {
+    if (!cleanName || !cleanEmail || !cleanDetails) {
       setError("Complete every field before submitting your request.");
       return;
     }
@@ -5133,13 +5131,12 @@ function CustomVideoRequestPage({ onBack }: { onBack: () => void }) {
       return;
     }
 
-    const subject = `Custom Video Request — ${cleanVideoType}`;
+    const subject = `Custom Video Inquiry`;
     const body = [
       "CUSTOM VIDEO REQUEST",
       "",
       `Name: ${cleanName}`,
       `Email: ${cleanEmail}`,
-      `Video Type: ${cleanVideoType}`,
       "",
       "Request Details:",
       cleanDetails,
@@ -5233,25 +5230,10 @@ function CustomVideoRequestPage({ onBack }: { onBack: () => void }) {
                 We use this address to reply about your custom request.
               </span>
             </label>
+            
 
             <label style={{ display: "grid", gap: "8px" }}>
-              <span style={{ fontWeight: 800, fontSize: "13px" }}>VIDEO TYPE</span>
-              <select
-                required
-                value={videoType}
-                onChange={(event) => setVideoType(event.target.value)}
-                style={{ ...fieldStyle, appearance: "auto" }}
-              >
-                <option value="">Choose a video type</option>
-                <option value="Solo custom video">Solo custom video</option>
-                <option value="Personalized video">Personalized video</option>
-                <option value="Fetish custom">Fetish custom</option>
-                <option value="Other custom request">Other custom request</option>
-              </select>
-            </label>
-
-            <label style={{ display: "grid", gap: "8px" }}>
-              <span style={{ fontWeight: 800, fontSize: "13px" }}>REQUEST DETAILS</span>
+              <span style={{ fontWeight: 800, fontSize: "13px" }}>DETAILS</span>
               <textarea
                 required
                 value={details}
