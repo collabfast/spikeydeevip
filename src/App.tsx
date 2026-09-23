@@ -5406,7 +5406,19 @@ function StudioDashboard({
 }: StudioDashboardProps) {
   const [studioTab, setStudioTab] =
     useState<StudioDashboardTab>("overview");
+const [managedPhotoSet, setManagedPhotoSet] = useState<VideoRecord | null>(null);
 
+const [managedPhotos, setManagedPhotos] = useState<
+  Array<{
+    id: string;
+    storage_path: string;
+    sort_order: number;
+    title: string | null;
+  }>
+>([]);
+
+const [managedPhotosLoading, setManagedPhotosLoading] = useState(false);
+const [savingPhotoId, setSavingPhotoId] = useState<string | null>(null);
   const openStudioTab = (tab: StudioDashboardTab) => {
     setStudioTab(tab);
 
@@ -5417,7 +5429,199 @@ function StudioDashboard({
       });
     }, 0);
   };
+  const openPhotoManager = async (video: VideoRecord) => {
+    setManagedPhotoSet(video);
+    setManagedPhotos([]);
+    setManagedPhotosLoading(true);
 
+    const { data, error } = await supabase
+      .from("photo_set_images")
+      .select("id, storage_path, sort_order, title")
+      .eq("content_id", video.id)
+      .order("sort_order", { ascending: true });
+
+    setManagedPhotosLoading(false);
+
+    if (error) {
+      setErrorMessage(error.message);
+      return;
+    }
+
+    setManagedPhotos(
+      (data ?? []) as Array<{
+        id: string;
+        storage_path: string;
+        sort_order: number;
+        title: string | null;
+      }>,
+    );
+  };
+
+  const savePhotoTitle = async (photoId: string, title: string) => {
+    setSavingPhotoId(photoId);
+
+    const { error } = await supabase
+      .from("photo_set_images")
+      .update({ title: title.trim() || null })
+      .eq("id", photoId);
+
+    setSavingPhotoId(null);
+
+    if (error) {
+      setErrorMessage(error.message);
+      return;
+    }
+
+    setManagedPhotos((photos) =>
+      photos.map((photo) =>
+        photo.id === photoId ? { ...photo, title } : photo,
+      ),
+    );
+
+    onCatalogChanged();
+  };
+  const [resumingPhotoSet, setResumingPhotoSet] = useState(false);
+  const resumePhotoSetUpload = async (files: File[]) => {
+  if (!managedPhotoSet || files.length === 0 || resumingPhotoSet) {
+    return;
+  }
+
+  setResumingPhotoSet(true);
+
+  const existingFileNames = new Set(
+    managedPhotos.map(
+      (photo) =>
+        photo.storage_path
+          .split("/")
+          .pop()
+          ?.replace(/^\d+-/, "") ?? photo.storage_path,
+    ),
+  );
+
+  let nextSortOrder =
+    Math.max(-1, ...managedPhotos.map((photo) => photo.sort_order)) + 1;
+  let nextFileNumber = managedPhotos.length + 1;
+  let skippedCount = 0;
+  const failedFiles: string[] = [];
+
+  const pendingRows: Array<{
+    content_id: string;
+    storage_path: string;
+    sort_order: number;
+    alt_text: null;
+  }> = [];
+
+  const savePendingRows = async () => {
+    if (pendingRows.length === 0) return;
+
+    const rowsToSave = [...pendingRows];
+
+    const { error } = await supabase
+      .from("photo_set_images")
+      .insert(rowsToSave);
+
+    if (error) throw error;
+
+    pendingRows.length = 0;
+  };
+
+  try {
+    for (const file of files) {
+      const fileName = safeFileName(file.name);
+
+      if (existingFileNames.has(fileName)) {
+        skippedCount += 1;
+        continue;
+      }
+
+      const storagePath = `${managedPhotoSet.id}/${String(
+        nextFileNumber,
+      ).padStart(3, "0")}-${fileName}`;
+
+      const sortOrder = nextSortOrder;
+      nextFileNumber += 1;
+      nextSortOrder += 1;
+
+      let uploadError: unknown = null;
+
+      for (let attempt = 1; attempt <= 3; attempt += 1) {
+        const { error } = await supabase.storage
+          .from("photo-sets")
+          .upload(storagePath, file, {
+            contentType: file.type,
+            upsert: false,
+          });
+
+        if (!error) {
+          uploadError = null;
+          break;
+        }
+
+        uploadError = error;
+
+        if (attempt < 3) {
+          await new Promise((resolve) =>
+            window.setTimeout(resolve, 1_500),
+          );
+        }
+      }
+
+      if (uploadError) {
+        console.error(`Could not upload ${file.name}`, uploadError);
+        failedFiles.push(file.name);
+        continue;
+      }
+
+      pendingRows.push({
+        content_id: managedPhotoSet.id,
+        storage_path: storagePath,
+        sort_order: sortOrder,
+        alt_text: null,
+      });
+
+      existingFileNames.add(fileName);
+
+      if (pendingRows.length >= 10) {
+        await savePendingRows();
+      }
+
+      await new Promise((resolve) => window.setTimeout(resolve, 300));
+    }
+
+    await savePendingRows();
+
+    const { data, error: loadError } = await supabase
+      .from("photo_set_images")
+      .select("id, storage_path, sort_order, title")
+      .eq("content_id", managedPhotoSet.id)
+      .order("sort_order", { ascending: true });
+
+    if (loadError) throw loadError;
+
+    const updatedPhotos = (data ?? []) as typeof managedPhotos;
+
+    const { error: countError } = await supabase
+      .from("videos")
+      .update({ photo_count: updatedPhotos.length })
+      .eq("id", managedPhotoSet.id);
+
+    if (countError) throw countError;
+
+    setManagedPhotos(updatedPhotos);
+    setMessage(
+      failedFiles.length === 0
+        ? `Photo set now has ${updatedPhotos.length} photos. ${skippedCount} existing photos were skipped.`
+        : `Photo set now has ${updatedPhotos.length} photos. ${failedFiles.length} uploads failed.`,
+    );
+    onCatalogChanged();
+  } catch (error) {
+    setErrorMessage(
+      error instanceof Error ? error.message : "Photo resume failed.",
+    );
+  } finally {
+    setResumingPhotoSet(false);
+  }
+};
   const [modelApplications, setModelApplications] =
     useState<ModelApplication[]>([]);
   const [modelApplicationsLoading, setModelApplicationsLoading] =
@@ -7843,30 +8047,51 @@ if (form.contentType === "photo_set" && photoSetFiles.length > 0) {
     alt_text: null;
   }[] = [];
 
-  for (const [index, file] of photoSetFiles.entries()) {
-    const storagePath = `${savedVideoId}/${String(index + 1).padStart(
-      3,
-      "0"
-    )}-${safeFileName(file.name)}`;
+const failedPhotoUploads: string[] = [];
 
-    const { error: uploadError } = await supabase.storage
-      .from("photo-sets")
-      .upload(storagePath, file, {
-        contentType: file.type,
-        upsert: false,
-      });
+for (const [index, file] of photoSetFiles.entries()) {
+  const storagePath = `${savedVideoId}/${String(index + 1).padStart(
+    3,
+    "0",
+  )}-${safeFileName(file.name)}`;
 
-    if (uploadError) {
-      throw uploadError;
-    }
+  let uploadError: unknown = null;
 
-    imageRows.push({
-      content_id: savedVideoId,
-      storage_path: storagePath,
-      sort_order: index,
-      alt_text: null,
+for (let attempt = 1; attempt <= 3; attempt += 1) {
+  const { error } = await supabase.storage
+    .from("photo-sets")
+    .upload(storagePath, file, {
+      contentType: file.type,
+      upsert: false,
     });
+
+  if (!error) {
+    uploadError = null;
+    break;
   }
+
+  uploadError = error;
+
+  if (attempt < 3) {
+    await new Promise((resolve) => window.setTimeout(resolve, 1_500));
+  }
+}
+
+if (uploadError) {
+  console.error(`Could not upload ${file.name}`, uploadError);
+  failedPhotoUploads.push(file.name);
+  continue;
+}
+
+await new Promise((resolve) => window.setTimeout(resolve, 300));
+
+  imageRows.push({
+    content_id: savedVideoId,
+    storage_path: storagePath,
+    sort_order: index,
+    alt_text: null,
+  });
+}
 
   const { error: imagesError } = await supabase
     .from("photo_set_images")
@@ -7884,6 +8109,13 @@ if (form.contentType === "photo_set" && photoSetFiles.length > 0) {
   if (countError) {
     throw countError;
   }
+setMessage(
+  failedPhotoUploads.length === 0
+    ? `Photo set saved with ${imageRows.length} photos. Complete compliance review, then publish it.`
+    : `Photo set saved with ${imageRows.length} of ${photoSetFiles.length} photos. ${failedPhotoUploads
+        .slice(0, 5)
+        .join(", ")}${failedPhotoUploads.length > 5 ? "…" : ""}`,
+);
 }
       if (savedVideoId && hasAnyComplianceInput) {
         setUploadStatus("Saving production compliance links…");
@@ -12081,6 +12313,15 @@ const togglePublished = async (video: VideoRecord) => {
                     >
                       {video.is_featured ? "Remove Public Poster" : "Show as Public Poster"}
                     </button>
+                    {video.content_type === "photo_set" && (
+  <button
+    type="button"
+    className="secondary-button"
+    onClick={() => void openPhotoManager(video)}
+  >
+    Manage Photos
+  </button>
+)}
                     <button
                       type="button"
                       className="secondary-button"
@@ -12097,6 +12338,111 @@ const togglePublished = async (video: VideoRecord) => {
           )}
         </section>
       </div>
+    {managedPhotoSet ? (
+<section
+  style={{
+    position: "fixed",
+    inset: 0,
+    zIndex: 9999,
+    overflowY: "auto",
+    padding: 32,
+    background: "rgba(0, 0, 0, 0.92)",
+  }}
+>    <h2>Manage individual photo titles</h2>
+    <p>{managedPhotoSet.title}</p>
+    <label
+  className="secondary-button"
+  style={{
+    display: "inline-block",
+    marginBottom: 20,
+    cursor: resumingPhotoSet ? "wait" : "pointer",
+    opacity: resumingPhotoSet ? 0.65 : 1,
+  }}
+>
+  {resumingPhotoSet ? "Resuming photos…" : "Resume / Add Photos"}
+  <input
+    type="file"
+    accept="image/*"
+    multiple
+    hidden
+    disabled={resumingPhotoSet}
+    onChange={(event) => {
+      const files = Array.from(event.target.files ?? []);
+      event.currentTarget.value = "";
+      void resumePhotoSetUpload(files);
+    }}
+  />
+</label>
+{managedPhotosLoading ? (
+  <p>Loading photos…</p>
+) : (
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+      gap: 16,
+      marginTop: 24,
+      marginBottom: 24,
+    }}
+  >
+    {managedPhotos.map((photo) => (
+      <article key={photo.id}>
+        <img
+          src={
+            supabase.storage
+              .from("photo-sets")
+              .getPublicUrl(photo.storage_path).data.publicUrl
+          }
+          alt={photo.title ?? "Photo"}
+          style={{
+            display: "block",
+            width: "100%",
+            aspectRatio: "3 / 4",
+            objectFit: "cover",
+          }}
+        />
+
+        <label style={{ display: "block", marginTop: 10 }}>
+          Photo title
+          <input
+            value={photo.title ?? ""}
+            onChange={(event) =>
+              setManagedPhotos((photos) =>
+                photos.map((item) =>
+                  item.id === photo.id
+                    ? { ...item, title: event.target.value }
+                    : item,
+                ),
+              )
+            }
+          />
+        </label>
+
+        <button
+          type="button"
+          className="primary-button"
+          disabled={savingPhotoId === photo.id}
+          onClick={() => void savePhotoTitle(photo.id, photo.title ?? "")}
+          style={{ marginTop: 10 }}
+        >
+          {savingPhotoId === photo.id ? "Saving…" : "Save title"}
+        </button>
+      </article>
+    ))}
+  </div>
+)}
+    <button
+      type="button"
+      className="secondary-button"
+      onClick={() => {
+        setManagedPhotoSet(null);
+        setManagedPhotos([]);
+      }}
+    >
+      Close
+    </button>
+  </section>
+) : null}  
     </main>
   );
 }
@@ -15825,7 +16171,11 @@ until cancelled.
 function App() {
   const [ageVerified, setAgeVerified] =
     useState<boolean>(() => loadAgeVerification());
-
+  const isPasswordRecoveryRoute =
+    window.location.pathname === "/member-reset-password" ||
+    new URLSearchParams(window.location.search).get("type") === "recovery" ||
+    new URLSearchParams(window.location.hash.slice(1)).get("type") ===
+      "recovery";
   const confirmAge = () => {
     try {
       window.sessionStorage.setItem(
@@ -15837,15 +16187,13 @@ function App() {
         "Could not persist age verification for this session:",
         error
       );
-    }
-
-    setAgeVerified(true);
+          }
+          setAgeVerified(true);
   };
-
-  if (!ageVerified) {
+   if (!ageVerified && !isPasswordRecoveryRoute) {
     return <AgeGate onConfirm={confirmAge} />;
   }
-
+  
   return <MainApp />;
 }
 
