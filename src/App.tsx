@@ -5181,7 +5181,6 @@ function CustomVideoRequestPage({ onBack }: { onBack: () => void }) {
             boxShadow: "0 28px 80px rgba(0,0,0,.45)",
           }}
         >
-          <span className="section-kicker">CUSTOM VIDEO REQUEST</span>
         <h1
   style={{
     margin: "10px 0 10px",
@@ -5192,7 +5191,7 @@ function CustomVideoRequestPage({ onBack }: { onBack: () => void }) {
     WebkitTextFillColor: "#ffffff",
   }}
 >
-  REQUEST A CUSTOM VIDEO
+  INQUIRIES
 </h1>
           <p
             style={{
@@ -5202,8 +5201,6 @@ function CustomVideoRequestPage({ onBack }: { onBack: () => void }) {
               maxWidth: "680px",
             }}
           >
-            Tell us what you want made. Your email is required so the studio can
-            reply with availability, pricing, and next steps.
           </p>
 
           <form onSubmit={submitCustomRequest} style={{ display: "grid", gap: "18px" }}>
