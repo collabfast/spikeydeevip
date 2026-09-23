@@ -5227,7 +5227,7 @@ function CustomVideoRequestPage({ onBack }: { onBack: () => void }) {
                 style={fieldStyle}
               />
               <span style={{ color: "var(--text-dim)", fontSize: "11px" }}>
-                We use this address to reply about your custom request.
+We use this email to reply about your inquiry.
               </span>
             </label>
             
@@ -5238,7 +5238,7 @@ function CustomVideoRequestPage({ onBack }: { onBack: () => void }) {
                 required
                 value={details}
                 onChange={(event) => setDetails(event.target.value)}
-                placeholder="Describe the custom video you want, including preferred length, theme, name usage, or other details."
+                placeholder="Provide any additional details about your inquiry."
                 rows={8}
                 style={{
                   ...fieldStyle,
@@ -12614,7 +12614,7 @@ function SiteHeader({
       onCustomRequest();
     }}
   >
-    CUSTOM
+    INQUIRIES
   </button>
 
   <button
