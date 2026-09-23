@@ -5298,7 +5298,7 @@ function CustomVideoRequestPage({ onBack }: { onBack: () => void }) {
                 className="primary-button"
                 style={{ minHeight: "50px", padding: "0 24px" }}
               >
-                SUBMIT CUSTOM REQUEST →
+                SUBMIT INQUIRY →
               </button>
 
               <button
