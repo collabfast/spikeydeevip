@@ -14046,7 +14046,7 @@ const [, setActiveBrandStartIndex] = useState(0);
         return;
       }
 
-      if (path === "/custom-video") {
+      if (path === "/inquires") {
         setAuthOpen(false);
         setPasswordResetOpen(false);
         setViewMode("custom");
@@ -15198,8 +15198,8 @@ setPublicVideos(catalogItems);
   const showCustomRequest = () => {
     setActiveNav("custom");
 
-    if (window.location.pathname !== "/custom-video") {
-      window.history.pushState({}, "", "/custom-video");
+    if (window.location.pathname !== "/inquires") {
+      window.history.pushState({}, "", "/inquires");
     }
 
     setSelectedItem(null);
