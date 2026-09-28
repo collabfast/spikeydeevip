@@ -5105,45 +5105,40 @@ function ApplyToModelPage({ onBack }: { onBack: () => void }) {
    ========================================================= */
 
 function CustomVideoRequestPage({ onBack }: { onBack: () => void }) {
-  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [details, setDetails] = useState("");
   const [error, setError] = useState("");
   const [submitted, setSubmitted] = useState(false);
 
-  const submitCustomRequest = (event: FormEvent<HTMLFormElement>) => {
+  const submitWaitlist = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
     setSubmitted(false);
 
-    const cleanName = name.trim();
     const cleanEmail = email.trim().toLowerCase();
-    const cleanDetails = details.trim();
 
-    if (!cleanName || !cleanEmail || !cleanDetails) {
-      setError("Complete every field before submitting your request.");
+    if (!cleanEmail) {
+      setError("Enter your email address to join the waitlist.");
       return;
     }
 
     const emailLooksValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail);
+
     if (!emailLooksValid) {
-      setError("Enter a valid email address so we can reply to your request.");
+      setError("Enter a valid email address.");
       return;
     }
 
-    const subject = `Custom Video Inquiry`;
+    const subject = "SpikeyDeeVIP Waitlist Signup";
     const body = [
-      "CUSTOM VIDEO REQUEST",
+      "SPIKEYDEEVIP WAITLIST SIGNUP",
       "",
-      `Name: ${cleanName}`,
       `Email: ${cleanEmail}`,
-      "",
-      "Request Details:",
-      cleanDetails,
     ].join("\n");
 
     setSubmitted(true);
-    window.location.href = `mailto:spikeydeefilms@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+    window.location.href =
+      `mailto:spikeydeefilms@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
   const fieldStyle: CSSProperties = {
@@ -5178,18 +5173,19 @@ function CustomVideoRequestPage({ onBack }: { onBack: () => void }) {
             boxShadow: "0 28px 80px rgba(0,0,0,.45)",
           }}
         >
-        <h1
-  style={{
-    margin: "10px 0 10px",
-    fontSize: "clamp(30px, 6vw, 52px)",
-    lineHeight: 1,
-    letterSpacing: "-.035em",
-    color: "#ffffff",
-    WebkitTextFillColor: "#ffffff",
-  }}
->
-  INQUIRIES
-</h1>
+          <h1
+            style={{
+              margin: "10px 0 10px",
+              fontSize: "clamp(30px, 6vw, 52px)",
+              lineHeight: 1,
+              letterSpacing: "-.035em",
+              color: "#ffffff",
+              WebkitTextFillColor: "#ffffff",
+            }}
+          >
+            JOIN THE WAITLIST
+          </h1>
+
           <p
             style={{
               margin: "0 0 28px",
@@ -5198,24 +5194,13 @@ function CustomVideoRequestPage({ onBack }: { onBack: () => void }) {
               maxWidth: "680px",
             }}
           >
+            Be the first to know when SpikeyDeeVIP subscriptions go live.
           </p>
 
-          <form onSubmit={submitCustomRequest} style={{ display: "grid", gap: "18px" }}>
-            <label style={{ display: "grid", gap: "8px" }}>
-              <span style={{ fontWeight: 800, fontSize: "13px" }}>NAME</span>
-              <input
-                type="text"
-                required
-                autoComplete="name"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                placeholder="Your name"
-                style={fieldStyle}
-              />
-            </label>
-
+          <form onSubmit={submitWaitlist} style={{ display: "grid", gap: "18px" }}>
             <label style={{ display: "grid", gap: "8px" }}>
               <span style={{ fontWeight: 800, fontSize: "13px" }}>EMAIL *</span>
+
               <input
                 type="email"
                 required
@@ -5226,28 +5211,10 @@ function CustomVideoRequestPage({ onBack }: { onBack: () => void }) {
                 aria-label="Email address"
                 style={fieldStyle}
               />
-              <span style={{ color: "var(--text-dim)", fontSize: "11px" }}>
-We use this email to reply about your inquiry.
-              </span>
-            </label>
-            
 
-            <label style={{ display: "grid", gap: "8px" }}>
-              <span style={{ fontWeight: 800, fontSize: "13px" }}>DETAILS</span>
-              <textarea
-                required
-                value={details}
-                onChange={(event) => setDetails(event.target.value)}
-                placeholder="Provide any additional details about your inquiry."
-                rows={8}
-                style={{
-                  ...fieldStyle,
-                  minHeight: "180px",
-                  padding: "14px",
-                  resize: "vertical",
-                  lineHeight: 1.55,
-                }}
-              />
+              <span style={{ color: "var(--text-dim)", fontSize: "11px" }}>
+                We’ll use this email only for SpikeyDeeVIP launch and subscription updates.
+              </span>
             </label>
 
             {error && (
@@ -5280,8 +5247,8 @@ We use this email to reply about your inquiry.
                   lineHeight: 1.5,
                 }}
               >
-                Your email app should open with the request filled in. Send that
-                email to finish submitting your request.
+                Your email app should open with your waitlist request filled in.
+                Send that email to finish joining the list.
               </p>
             )}
 
@@ -5298,7 +5265,7 @@ We use this email to reply about your inquiry.
                 className="primary-button"
                 style={{ minHeight: "50px", padding: "0 24px" }}
               >
-                SUBMIT INQUIRY →
+                JOIN THE WAITLIST →
               </button>
 
               <button
@@ -14046,7 +14013,7 @@ const [, setActiveBrandStartIndex] = useState(0);
         return;
       }
 
-      if (path === "/inquires") {
+      if (path === "/waitlist") {
         setAuthOpen(false);
         setPasswordResetOpen(false);
         setViewMode("custom");
