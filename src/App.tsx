@@ -2,7 +2,6 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import type { CSSProperties, FormEvent, ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import * as tus from "tus-js-client";
-
 import { supabase } from "./lib/supabase";
 import "./App.css";
 import spikeydeeVipLogo from "./assets/spikeydeevip-logo.png";
@@ -5108,38 +5107,53 @@ function CustomVideoRequestPage({ onBack }: { onBack: () => void }) {
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const submitWaitlist = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setError("");
-    setSubmitted(false);
+const submitWaitlist = async (event: FormEvent<HTMLFormElement>) => {
+  event.preventDefault();
+  setError("");
+  setSubmitted(false);
 
-    const cleanEmail = email.trim().toLowerCase();
+  const cleanEmail = email.trim().toLowerCase();
 
-    if (!cleanEmail) {
-      setError("Enter your email address to join the waitlist.");
-      return;
+  if (!cleanEmail) {
+    setError("Enter your email address to join the waitlist.");
+    return;
+  }
+
+  const emailLooksValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail);
+
+  if (!emailLooksValid) {
+    setError("Enter a valid email address.");
+    return;
+  }
+
+  setIsSubmitting(true);
+
+  try {
+    const { error: signupError } = await supabase
+      .from("waitlist_signups")
+      .insert({ email: cleanEmail });
+
+    if (signupError) {
+      if (signupError.code === "23505") {
+        setSubmitted(true);
+        setEmail("");
+        return;
+      }
+
+      throw signupError;
     }
-
-    const emailLooksValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail);
-
-    if (!emailLooksValid) {
-      setError("Enter a valid email address.");
-      return;
-    }
-
-    const subject = "SpikeyDeeVIP Waitlist Signup";
-    const body = [
-      "SPIKEYDEEVIP WAITLIST SIGNUP",
-      "",
-      `Email: ${cleanEmail}`,
-    ].join("\n");
 
     setSubmitted(true);
-
-    window.location.href =
-      `mailto:spikeydeefilms@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  };
+    setEmail("");
+  } catch (error) {
+    console.error("Waitlist signup failed:", error);
+    setError("We couldn't save your email right now. Please try again.");
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   const fieldStyle: CSSProperties = {
     width: "100%",
@@ -5247,8 +5261,7 @@ function CustomVideoRequestPage({ onBack }: { onBack: () => void }) {
                   lineHeight: 1.5,
                 }}
               >
-                Your email app should open with your waitlist request filled in.
-                Send that email to finish joining the list.
+              You’re on the list. We’ll email you when SpikeyDeeVIP subscriptions go live.
               </p>
             )}
 
@@ -5260,13 +5273,19 @@ function CustomVideoRequestPage({ onBack }: { onBack: () => void }) {
                 alignItems: "center",
               }}
             >
-              <button
-                type="submit"
-                className="primary-button"
-                style={{ minHeight: "50px", padding: "0 24px" }}
-              >
-                JOIN THE WAITLIST →
-              </button>
+<button
+  type="submit"
+  className="primary-button"
+  disabled={isSubmitting}
+  style={{
+    minHeight: "50px",
+    padding: "0 24px",
+    opacity: isSubmitting ? 0.7 : 1,
+    cursor: isSubmitting ? "wait" : "pointer",
+  }}
+>
+  {isSubmitting ? "JOINING..." : "JOIN THE WAITLIST →"}
+</button>
 
               <button
                 type="button"
