@@ -29,8 +29,8 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
+    const checkOnly = body?.checkOnly === true
 const plan = body?.plan as PaidPlan;
-const checkOnly = body?.checkOnly === true;
 const email = String(body?.email ?? "")
   .trim()
   .toLowerCase();
@@ -39,7 +39,7 @@ const email = String(body?.email ?? "")
   return json({ ok: false, message: "Invalid membership plan." }, 400);
 }
 
-    if (!/^\\S+@\\S+\\.\\S+$/.test(email)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return json({ ok: false, message: "Invalid email address." }, 400);
     }
 

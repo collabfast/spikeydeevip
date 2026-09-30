@@ -198,6 +198,124 @@ Deno.serve(async (req) => {
     if (membershipError) {
       throw new Error(membershipError.message);
     }
+    // Send the account-setup email only once per checkout.
+    // Email failure must NOT cause the CCBill approval callback to fail.
+    if (!checkout.setup_email_sent_at) {
+      try {
+        const resendApiKey = Deno.env.get("RESEND_API_KEY");
+
+        if (!resendApiKey) {
+          console.error(
+            "RESEND_API_KEY is missing; account setup email was not sent.",
+          );
+        } else {
+          const setupUrl =
+            `https://spikeydeevip.com/checkout/return?checkout_id=${encodeURIComponent(
+              checkoutId,
+            )}`;
+
+          const resendResponse = await fetch(
+            "https://api.resend.com/emails",
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${resendApiKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                from: "SpikeyDeeVIP <no-reply@auth.spikeydeevip.com>",
+                to: [checkout.customer_email],
+                subject: "Set up your SpikeyDeeVIP account",
+                html: `
+                  <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;line-height:1.6;">
+                    <h2>Your SpikeyDeeVIP membership is active</h2>
+
+                    <p>
+                      Your payment has been confirmed. Finish setting up your
+                      member account by choosing your password.
+                    </p>
+
+                    <p style="margin:32px 0;">
+                      <a
+                        href="${setupUrl}"
+                        style="background:#000;color:#fff;text-decoration:none;padding:14px 22px;border-radius:6px;display:inline-block;font-weight:600;"
+                      >
+                        Set Up Your Account
+                      </a>
+                    </p>
+
+                    <p>
+                      After creating your password, you'll be able to sign in
+                      and access your membership.
+                    </p>
+
+                    <p style="font-size:13px;color:#666;">
+                      If you did not purchase a SpikeyDeeVIP membership,
+                      you can ignore this email.
+                    </p>
+
+                    <p>— SpikeyDeeVIP</p>
+                  </div>
+                `,
+                text: [
+                  "Your SpikeyDeeVIP membership is active.",
+                  "",
+                  "Your payment has been confirmed.",
+                  "Set up your account and choose your password here:",
+                  setupUrl,
+                  "",
+                  "— SpikeyDeeVIP",
+                ].join("\n"),
+              }),
+            },
+          );
+
+          if (!resendResponse.ok) {
+            const resendBody =
+              await resendResponse.text().catch(() => "");
+
+            console.error(
+              "Account setup email failed:",
+              resendResponse.status,
+              resendBody,
+            );
+          } else {
+            const emailSentAt = new Date().toISOString();
+
+            const { error: emailTimestampError } =
+              await admin
+                .from("membership_checkouts")
+                .update({
+                  setup_email_sent_at: emailSentAt,
+                  updated_at: emailSentAt,
+                })
+                .eq("id", checkoutId);
+
+            if (emailTimestampError) {
+              console.error(
+                "Account setup email sent, but setup_email_sent_at could not be saved:",
+                emailTimestampError.message,
+              );
+            } else {
+              console.log(
+                "Account setup email sent:",
+                checkout.customer_email,
+              );
+            }
+          }
+        }
+      } catch (emailError) {
+        console.error(
+          "Account setup email error:",
+          emailError,
+        );
+      }
+    } else {
+      console.log(
+        "Account setup email already sent; skipping:",
+        checkoutId,
+      );
+    }
 
     return new Response("OK", { status: 200 });
   } catch (error) {

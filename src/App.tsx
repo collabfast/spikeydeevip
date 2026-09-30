@@ -409,7 +409,7 @@ const EMPTY_VIDEO_FORM: VideoFormState = {
   seriesName: "",
   badge: "",
   contentType: "video",
-  accessTier: "monthly_only",
+  accessTier: "day_and_monthly",
   isPublished: false,
   isFeatured: false,
 };
@@ -3060,12 +3060,19 @@ function CheckoutReturnModal({
       return;
     }
 
-    if (password.length < 8) {
-      setErrorMessage(
-        "Use a password with at least 8 characters."
-      );
-      return;
-    }
+const passwordMeetsRequirements =
+  password.length >= 8 &&
+  /[a-z]/.test(password) &&
+  /[A-Z]/.test(password) &&
+  /[0-9]/.test(password) &&
+  /[^A-Za-z0-9]/.test(password);
+
+if (!passwordMeetsRequirements) {
+  setErrorMessage(
+    "Password must be at least 8 characters and include an uppercase letter, lowercase letter, number, and special character."
+  );
+  return;
+}
 
     if (password !== confirmPassword) {
       setErrorMessage("The passwords do not match.");
@@ -3235,7 +3242,17 @@ function CheckoutReturnModal({
                   color: "#fff",
                 }}
               />
-
+<p
+  style={{
+    margin: "-4px 0 14px",
+    color: "var(--text-muted)",
+    fontSize: "12px",
+    lineHeight: 1.5,
+  }}
+>
+  Password must be at least 8 characters and include an uppercase
+  letter, lowercase letter, number, and special character.
+</p>
               <input
                 required
                 type="password"
@@ -5103,7 +5120,7 @@ function ApplyToModelPage({ onBack }: { onBack: () => void }) {
    CUSTOM VIDEO REQUEST
    ========================================================= */
 
-function CustomVideoRequestPage({ onBack }: { onBack: () => void }) {
+function CustomVideoRequestPage() {
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [submitted, setSubmitted] = useState(false);
@@ -5181,20 +5198,22 @@ const submitWaitlist = async (event: FormEvent<HTMLFormElement>) => {
         <section
           style={{
             padding: "clamp(24px, 5vw, 42px)",
-            border: "1px solid rgba(231,187,69,.20)",
             borderRadius: "18px",
-            background: "rgba(12,12,13,.96)",
+            background: "#000",
             boxShadow: "0 28px 80px rgba(0,0,0,.45)",
           }}
         >
+          <p style={{ margin: 0, color: "#e7bb45", fontSize: "12px", fontWeight: 800, letterSpacing: ".16em" }}>
+  EARLY ACCESS
+</p>
           <h1
             style={{
               margin: "10px 0 10px",
               fontSize: "clamp(30px, 6vw, 52px)",
               lineHeight: 1,
               letterSpacing: "-.035em",
-              color: "#ffffff",
-              WebkitTextFillColor: "#ffffff",
+             color: "#e7bb45",
+WebkitTextFillColor: "#e7bb45",
             }}
           >
             JOIN THE WAITLIST
@@ -5286,15 +5305,6 @@ const submitWaitlist = async (event: FormEvent<HTMLFormElement>) => {
 >
   {isSubmitting ? "JOINING..." : "JOIN THE WAITLIST →"}
 </button>
-
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={onBack}
-                style={{ minHeight: "50px" }}
-              >
-                ← BACK TO SITE
-              </button>
             </div>
           </form>
         </section>
@@ -7651,7 +7661,7 @@ const saveHeroSettings = async () => {
       seriesName: video.series ?? video.series_name ?? "",
       badge: video.badge ?? "",
       contentType: video.content_type === "photo_set" ? "photo_set" : "video",
-      accessTier: video.access_tier ?? "monthly_only",
+      accessTier: video.access_tier ?? "day_and_monthly",
       isPublished: Boolean(video.is_published),
       isFeatured: Boolean(video.is_featured),
     });
@@ -15430,7 +15440,7 @@ setPublicVideos(catalogItems);
       ) : viewMode === "apply" ? (
         <ApplyToModelPage onBack={goHome} />
       ) : viewMode === "custom" ? (
-        <CustomVideoRequestPage onBack={goHome} />
+        <CustomVideoRequestPage />
       ) : viewMode ===
         "detail" &&
       selectedItem ? (
