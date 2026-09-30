@@ -5750,6 +5750,30 @@ const [complianceRestoreBusyDocumentId, setComplianceRestoreBusyDocumentId] =
 
 const [productionCode, setProductionCode] = useState("");
 const [productionDate, setProductionDate] = useState("");
+const generateProductionCode = () => {
+  const now = new Date();
+
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+
+  const random = Math.random()
+    .toString(36)
+    .substring(2, 7)
+    .toUpperCase();
+
+  return `SDV-${year}${month}${day}-${random}`;
+};
+
+const getTodayProductionDate = () => {
+  const now = new Date();
+
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
 const [editingComplianceProductionId, setEditingComplianceProductionId] =
   useState<string | null>(null);
 const [selectedCompliancePerformerIds, setSelectedCompliancePerformerIds] =
@@ -5935,8 +5959,14 @@ const loadComplianceDocuments = async () => {
 };
 
 const resetProductionComplianceForm = () => {
-  setProductionCode("");
-  setProductionDate("");
+const nextProductionCode = generateProductionCode();
+
+setProductionCode(nextProductionCode);
+setProductionDate(getTodayProductionDate());
+setForm((current) => ({
+  ...current,
+  title: nextProductionCode,
+}));
   setEditingComplianceProductionId(null);
   setSelectedCompliancePerformerIds([]);
   setSelectedComplianceDocumentIds([]);
@@ -8104,8 +8134,15 @@ setMessage(
       setThumbnailFile(null);
       setUploadStatus("");
       setUploadProgress(0);
-      setProductionCode("");
-      setProductionDate("");
+  const nextProductionCode = generateProductionCode();
+
+setProductionCode(nextProductionCode);
+setProductionDate(getTodayProductionDate());
+
+setForm((current) => ({
+  ...current,
+  title: nextProductionCode,
+}));
       setEditingComplianceProductionId(null);
       setSelectedCompliancePerformerIds([]);
       setSelectedComplianceDocumentIds([]);
