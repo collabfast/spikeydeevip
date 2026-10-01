@@ -15417,20 +15417,26 @@ setPublicVideos(catalogItems);
      LEGAL NAVIGATION
      ======================================================= */
 
-  const openLegalPage = (
-    page: LegalPageKey
-  ) => {
-    setLegalPage(page);
-    setViewMode("legal");
-    setSelectedItem(null);
-    setSearchOpen(false);
-    setMenuOpen(false);
+const openLegalPage = (
+  page: LegalPageKey
+) => {
+  setLegalPage(page);
+  setViewMode("legal");
+  setSelectedItem(null);
+  setSearchOpen(false);
+  setMenuOpen(false);
 
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
-  };
+  window.history.pushState(
+    {},
+    "",
+    `/${page}`
+  );
+
+  window.scrollTo({
+    top: 0,
+    behavior: "smooth",
+  });
+};
 
   /* =======================================================
      LOG OUT
