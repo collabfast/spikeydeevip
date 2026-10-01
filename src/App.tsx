@@ -1981,9 +1981,9 @@ function ContentCard({
   <button
     type="button"
     className="card-image"
-   style={{
+style={{
   borderRadius: 0,
-  aspectRatio: item.contentType === "photo_set" ? "auto" : "16 / 9",
+  aspectRatio: "auto",
 }}
     onClick={() => onOpen(item)}
     aria-label={`Open ${item.title}`}
@@ -1992,22 +1992,13 @@ function ContentCard({
           <img
             src={item.thumbnailUrl}
             alt={`${item.title} thumbnail`}
-           style={
-  item.contentType === "photo_set"
-    ? {
-        display: "block",
-        width: "100%",
-        height: "auto",
-        objectFit: "contain",
-      }
-    : {
-        position: "absolute",
-        inset: 0,
-        width: "100%",
-        height: "100%",
-        objectFit: "cover",
-      }
-} 
+  style={{
+  display: "block",
+  width: "100%",
+  height: "auto",
+  objectFit: "contain",
+  objectPosition: "center",
+}}
           />
         ) : item.video ? (
           <video
@@ -2016,14 +2007,21 @@ function ContentCard({
             muted
             playsInline
             preload="metadata"
-            style={{
-  position: "absolute",
-  inset: 0,
-  width: "100%",
-  height: "100%",
-  objectFit: "cover",
-  objectPosition: "center",
+            onLoadedMetadata={(event) => {
+  const video = event.currentTarget;
+  const cardImage = video.closest(".card-image") as HTMLElement | null;
+
+  if (cardImage && video.videoWidth && video.videoHeight) {
+    cardImage.style.aspectRatio = `${video.videoWidth} / ${video.videoHeight}`;
+  }
 }}
+           style={{
+  display: "block",
+  width: "100%",
+  height: "auto",
+  objectFit: "contain",
+  objectPosition: "center",
+}} 
           />
         ) : (
           <div className="card-gradient" />
