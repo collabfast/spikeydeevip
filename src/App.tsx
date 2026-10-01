@@ -2133,22 +2133,42 @@ function ContentRow({
 const [mediaFilter, setMediaFilter] = useState<
   "solo_pics" | "solo_videos" | "collabs"
 >("solo_videos");
+const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
 
-const filteredItems = items.filter((item) => {
-  if (mediaFilter === "solo_pics") {
-    return item.contentGroup === "solo_pics";
-  }
+const filteredItems = items
+  .filter((item) => {
+    if (mediaFilter === "solo_pics") {
+      return item.contentGroup === "solo_pics";
+    }
 
-  if (mediaFilter === "solo_videos") {
-    return item.contentGroup === "solo_videos";
-  }
+    if (mediaFilter === "solo_videos") {
+      return item.contentGroup === "solo_videos";
+    }
 
-  if (mediaFilter === "collabs") {
-    return item.contentGroup === "collabs";
-  }
+    if (mediaFilter === "collabs") {
+      return item.contentGroup === "collabs";
+    }
 
-  return false;
-});
+    return false;
+  })
+  .sort((a, b) => {
+    const aDate =
+      a.publishedAt ??
+      (a as ContentItem & { published_at?: string | null }).published_at ??
+      "";
+
+    const bDate =
+      b.publishedAt ??
+      (b as ContentItem & { published_at?: string | null }).published_at ??
+      "";
+
+    const aTime = aDate ? Date.parse(aDate) : 0;
+    const bTime = bDate ? Date.parse(bDate) : 0;
+
+    return sortOrder === "newest"
+      ? bTime - aTime
+      : aTime - bTime;
+  });
   const renderCard = (item: ContentItem) => (
     <ContentCard
       key={item.contentId}
@@ -2227,7 +2247,23 @@ const filteredItems = items.filter((item) => {
   <option value="solo_videos">SOLO VIDEOS</option>
   <option value="collabs">COLLABS</option>
 </select>
-
+<select
+  aria-label="Sort releases"
+  value={sortOrder}
+  onChange={(event) =>
+    setSortOrder(event.target.value as "newest" | "oldest")
+  }
+  style={{
+    background: "#111",
+    border: "1px solid #333",
+    color: "#fff",
+    padding: "8px 10px",
+    fontSize: "12px",
+  }}
+>
+  <option value="newest">NEWEST FIRST</option>
+  <option value="oldest">OLDEST FIRST</option>
+</select>
   <button
     type="button"
     className="view-all"
@@ -13123,6 +13159,19 @@ const legalCopy: Record<LegalPageKey, LegalPageContent> = {
           </p>
         ),
       },
+      {
+  heading: "Prohibited Content",
+  body: (
+    <p>
+      SpikeyDeeVIP strictly prohibits any content depicting or involving
+      rape, sexual assault, incest, bestiality, or minors, including any
+      sexual content involving a person under 18 years of age. Any such
+      content is strictly prohibited and will be removed immediately upon
+      discovery or report, and may be reported to the appropriate
+      authorities as required by law.
+    </p>
+  ),
+},
       {
         heading: "Access Plans",
         body: (
