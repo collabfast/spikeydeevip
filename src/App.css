@@ -1305,8 +1305,7 @@ aspect-ratio: 16 / 9;
       transparent 45%
     ),
     #080808;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: 0;
 }
 
 .video-player-button {
