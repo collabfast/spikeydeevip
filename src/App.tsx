@@ -13159,17 +13159,55 @@ const legalCopy: Record<LegalPageKey, LegalPageContent> = {
           </p>
         ),
       },
-      {
+  {
   heading: "Prohibited Content",
   body: (
-    <p>
-      SpikeyDeeVIP strictly prohibits any content depicting or involving
-      rape, sexual assault, incest, bestiality, or minors, including any
-      sexual content involving a person under 18 years of age. Any such
-      content is strictly prohibited and will be removed immediately upon
-      discovery or report, and may be reported to the appropriate
-      authorities as required by law.
-    </p>
+    <>
+      <p>
+        The following content is strictly prohibited on the Site. This applies
+        to everything on the Site, including posts, videos, photos, messages,
+        live features, comments, requests, and the way content is described or
+        marketed:
+      </p>
+
+      <ul>
+        <li>
+          <strong>bestiality</strong> — any sexual activity involving animals;
+        </li>
+        <li>
+          <strong>incest</strong> — any sexual activity between family members,
+          real or portrayed;
+        </li>
+        <li>
+          <strong>non-consensual activity</strong> — any sexual activity that
+          is non-consensual, forced, coerced, or portrayed as such, including
+          rape, sexual violence, and content involving anyone who is
+          unconscious, asleep, intoxicated, or otherwise unable to consent;
+        </li>
+        <li>
+          anyone under 18, anyone presented as under 18, or any content that
+          sexualizes minors in any way;
+        </li>
+        <li>
+          content depicting blood, bodily harm, excretion, or degradation
+          intended to cause serious harm;
+        </li>
+        <li>
+          human trafficking, prostitution, or the solicitation of sexual
+          services;
+        </li>
+        <li>
+          content that is unlawful where it is produced or where it is viewed.
+        </li>
+      </ul>
+
+      <p>
+        We will remove any such content immediately, terminate the accounts
+        involved, and report to law enforcement where appropriate. Comments,
+        requests, or messages asking for any of the above will be treated the
+        same way.
+      </p>
+    </>
   ),
 },
       {
