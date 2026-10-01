@@ -14621,10 +14621,11 @@ const loadPublicHeroSettings = async () => {
           )
           .select(
             `
-              id,
-              content_type,
-              photo_count,
-              slug,
+             id,
+content_type,
+content_group,
+photo_count,
+slug,
               title,
               subtitle,
               description,
