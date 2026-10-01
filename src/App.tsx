@@ -55,7 +55,8 @@ type CheckoutActivationResponse = {
 
 type ContentItem = {
   contentId: string;
-  contentType?: "video" | "photo_set";
+  contentType?: "video" | "photo_set"; 
+ contentGroup?: "solo_pics" | "solo_videos" | "collabs";
 photoCount?: number;
   slug?: string;
   title: string;
@@ -115,6 +116,7 @@ type Profile = {
 type VideoRecord = {
   id: string;
   content_type?: "video" | "photo_set";
+  content_group: "solo_pics" | "solo_videos" | "collabs";
   photo_count?: number | null;
   slug: string;
   title: string;
@@ -341,6 +343,7 @@ type VideoFormState = {
   seriesName: string;
   badge: string;
   contentType: "video" | "photo_set";
+  contentGroup: "solo_pics" | "solo_videos" | "collabs";
   accessTier: VideoAccessTier;
   isPublished: boolean;
   isFeatured: boolean;
@@ -409,6 +412,7 @@ const EMPTY_VIDEO_FORM: VideoFormState = {
   seriesName: "",
   badge: "",
   contentType: "video",
+  contentGroup: "solo_videos",
   accessTier: "day_and_monthly",
   isPublished: false,
   isFeatured: false,
@@ -599,6 +603,7 @@ function videoRecordToContentItem(
   return {
    contentId: video.id,
 contentType: video.content_type === "photo_set" ? "photo_set" : "video",
+contentGroup: video.content_group ?? "solo_videos",
 photoCount: video.photo_count ?? 0,
     slug: video.slug,
     title: video.title,
@@ -2125,13 +2130,25 @@ function ContentRow({
   onToggleFavorite,
   favoriteBusyIds,
 }: ContentRowProps) {
-  const [mediaFilter, setMediaFilter] = useState<
-  "all" | "video" | "photo_set"
->("video");
+const [mediaFilter, setMediaFilter] = useState<
+  "solo_pics" | "solo_videos" | "collabs"
+>("solo_videos");
 
-const filteredItems = items.filter(
-  (item) => item.contentType === mediaFilter,
-);
+const filteredItems = items.filter((item) => {
+  if (mediaFilter === "solo_pics") {
+    return item.contentGroup === "solo_pics";
+  }
+
+  if (mediaFilter === "solo_videos") {
+    return item.contentGroup === "solo_videos";
+  }
+
+  if (mediaFilter === "collabs") {
+    return item.contentGroup === "collabs";
+  }
+
+  return false;
+});
   const renderCard = (item: ContentItem) => (
     <ContentCard
       key={item.contentId}
@@ -2188,25 +2205,28 @@ const filteredItems = items.filter(
 
        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
   <select
-    aria-label="Filter releases"
-    value={mediaFilter}
-    onChange={(event) =>
-      setMediaFilter(
-        event.target.value as "all" | "video" | "photo_set",
-      )
-    }
-    style={{
-      background: "#111",
-      border: "1px solid #333",
-      color: "#fff",
-      padding: "8px 10px",
-      fontSize: "12px",
-    }}
-  >
-    
-    <option value="video">Videos</option>
-    <option value="photo_set">Photos</option>
-  </select>
+  aria-label="Filter releases"
+  value={mediaFilter}
+  onChange={(event) =>
+    setMediaFilter(
+      event.target.value as
+        | "solo_pics"
+        | "solo_videos"
+        | "collabs",
+    )
+  }
+  style={{
+    background: "#111",
+    border: "1px solid #333",
+    color: "#fff",
+    padding: "8px 10px",
+    fontSize: "12px",
+  }}
+>
+  <option value="solo_pics">SOLO PICS</option>
+  <option value="solo_videos">SOLO VIDEOS</option>
+  <option value="collabs">COLLABS</option>
+</select>
 
   <button
     type="button"
@@ -7691,6 +7711,7 @@ const saveHeroSettings = async () => {
       seriesName: video.series ?? video.series_name ?? "",
       badge: video.badge ?? "",
       contentType: video.content_type === "photo_set" ? "photo_set" : "video",
+      contentGroup: video.content_group ?? "solo_videos",
       accessTier: video.access_tier ?? "day_and_monthly",
       isPublished: Boolean(video.is_published),
       isFeatured: Boolean(video.is_featured),
@@ -7946,6 +7967,7 @@ if (
 
       const payload = {
         content_type: form.contentType,
+        content_group: form.contentGroup,
         slug,
         title,
         subtitle: form.subtitle.trim() || null,
@@ -12111,7 +12133,25 @@ const togglePublished = async (video: VideoRecord) => {
                   <p style={{ color: "#fff" }}>{productionComplianceMessage}</p>
                 )}
               </div>
+<div style={uploadBoxStyle}>
+  <span className="section-kicker">CONTENT CLASSIFICATION</span>
+  <h3>Content Type</h3>
 
+  <select
+    value={form.contentGroup}
+    onChange={(e) =>
+      updateForm(
+        "contentGroup",
+        e.target.value as VideoFormState["contentGroup"]
+      )
+    }
+    style={{ ...fieldStyle, background: "#151515", color: "#fff" }}
+  >
+    <option value="solo_pics">SOLO PICS</option>
+    <option value="solo_videos">SOLO VIDEOS</option>
+    <option value="collabs">COLLABS</option>
+  </select>
+</div>
               <div style={uploadBoxStyle}>
                 <span className="section-kicker">VIDEO PERMISSION</span>
                 <h3>Access Level</h3>
