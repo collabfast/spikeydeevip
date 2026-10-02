@@ -2603,7 +2603,24 @@ function VideoDetail({
     
    aspectRatio: item.contentType === "photo_set" ? "auto" : "16 / 9",
   }}
->        {item.contentType === "photo_set" && item.thumbnailUrl ? (
+><button
+  type="button"
+  className="video-player-fullscreen"
+  aria-label="Enter fullscreen"
+  onClick={() => {
+    const player = document.querySelector(".video-player");
+
+    if (!player) return;
+
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      player.requestFullscreen?.();
+    }
+  }}
+>
+  ⛶
+</button>        {item.contentType === "photo_set" && item.thumbnailUrl ? (
   <img
     src={item.thumbnailUrl}
     alt={`${item.title} photo set cover`}

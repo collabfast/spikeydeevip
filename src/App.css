@@ -8227,3 +8227,75 @@ main .content-section textarea::placeholder {
     overflow-x: hidden;
   }
 }
+/* =========================================================
+   FINAL MOBILE HOMEPAGE TEXT + RELEASE HEADER FIX
+   ========================================================= */
+
+@media (max-width: 768px) {
+
+  /* Never split normal homepage words letter-by-letter */
+  .homepage h1,
+  .homepage h2,
+  .homepage h3,
+  .homepage p,
+  .homepage span,
+  .homepage strong,
+  .home-page h1,
+  .home-page h2,
+  .home-page h3,
+  .home-page p,
+  .home-page span,
+  .home-page strong,
+  .content-wrapper h1,
+  .content-wrapper h2,
+  .content-wrapper h3,
+  .content-wrapper p,
+  .content-wrapper span,
+  .content-wrapper strong {
+    overflow-wrap: normal !important;
+    word-wrap: normal !important;
+    word-break: normal !important;
+  }
+
+  /* New Releases / section heading */
+  .section-heading {
+    width: 100% !important;
+    min-width: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+  }
+
+  .section-heading > div:first-child {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    width: auto !important;
+  }
+
+  .section-heading h2,
+  .section-heading .section-kicker {
+    width: auto !important;
+    max-width: none !important;
+    white-space: normal !important;
+    overflow-wrap: normal !important;
+    word-break: normal !important;
+  }
+
+  .section-heading h2 {
+    font-size: 21px !important;
+    line-height: 1.1 !important;
+  }
+
+  .view-all {
+    flex: 0 0 auto !important;
+    white-space: nowrap !important;
+  }
+
+  /* Filter row */
+  .content-section select,
+  .content-section button {
+    overflow-wrap: normal !important;
+    word-break: normal !important;
+  }
+}
