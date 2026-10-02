@@ -8368,3 +8368,53 @@ main .content-section textarea::placeholder {
     word-break: normal !important;
   }
 }
+/* =========================================================
+   FINAL MEMBERSHIP PLAN GRID
+   Desktop: 3 cards
+   Mobile: 1 card per row
+   ========================================================= */
+
+/* DESKTOP */
+.vip-access-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 315px)) !important;
+  justify-content: center !important;
+  align-items: stretch !important;
+  gap: 18px !important;
+  width: 100% !important;
+}
+
+.vip-access-grid > .vip-access-card {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  height: 100% !important;
+}
+
+/* Desired visual order:
+   current JSX = 1 Year, 30 Day, 2 Day
+   display      = 2 Day, 30 Day, 1 Year
+*/
+.vip-access-grid > .vip-access-card:nth-of-type(1) {
+  order: 3;
+}
+
+.vip-access-grid > .vip-access-card:nth-of-type(2) {
+  order: 2;
+}
+
+.vip-access-grid > .vip-access-card:nth-of-type(3) {
+  order: 1;
+}
+
+/* MOBILE */
+@media (max-width: 700px) {
+  .vip-access-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 14px !important;
+  }
+
+  .vip-access-grid > .vip-access-card {
+    width: 100% !important;
+  }
+}
