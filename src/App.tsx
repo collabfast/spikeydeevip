@@ -14049,9 +14049,11 @@ function MainApp() {
       null
     );
 
- const [accessOpen, setAccessOpen] = useState(
-  () => window.location.pathname === "/signup"
-); 
+const [accessOpen, setAccessOpen] = useState(
+  () =>
+    window.location.pathname === "/signup" ||
+    window.sessionStorage.getItem("open_join_vip_after_age_gate") === "true"
+);
 
   const [
     membership,
@@ -16338,8 +16340,12 @@ function App() {
         error
       );
           }
-          setAgeVerified(true);
-  };
+          window.sessionStorage.setItem(
+  "open_join_vip_after_age_gate",
+  "true"
+);
+         setAgeVerified(true);
+          };
    if (!ageVerified && !isPasswordRecoveryRoute) {
     return <AgeGate onConfirm={confirmAge} />;
   }
