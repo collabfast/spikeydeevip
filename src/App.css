@@ -614,11 +614,11 @@ background: linear-gradient(
 
 .card-image {
   position: relative;
- width: 100%;
-height: auto;
-min-height: 0;
-aspect-ratio: 16 / 9;
-  overflow: hidden;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  aspect-ratio: auto;
+  overflow: visible;
 
   background:
     radial-gradient(
@@ -631,6 +631,15 @@ aspect-ratio: 16 / 9;
       #171717,
       #090909 70%
     );
+}
+
+.card-image img {
+  display: block;
+  width: 100%;
+  height: auto !important;
+  max-height: none !important;
+  object-fit: contain !important;
+  object-position: center center !important;
 }
 
 .card-gradient {

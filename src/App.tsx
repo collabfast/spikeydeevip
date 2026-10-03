@@ -1974,7 +1974,7 @@ function ContentCard({
  
   style={{
     position: "relative",
-    overflow: "hidden",
+   overflow: "visible",
     borderRadius: 0,
   }}
 >
@@ -1985,44 +1985,57 @@ function ContentCard({
     onClick={() => onOpen(item)}
     aria-label={`Open ${item.title}`}
   >
-        {item.thumbnailUrl ? (
-          <img
-            src={item.thumbnailUrl}
-            alt={`${item.title} thumbnail`}
+{item.video ? (
+ <video
+  className="card-video"
+  src={item.video}
+  muted
+  playsInline
+  preload="metadata"
   style={{
-  display: "block",
-  width: "100%",
-  height: "auto",
-  objectFit: "contain",
-  objectPosition: "center",
-}}
-          />
-        ) : item.video ? (
-          <video
-            className="card-video"
-            src={item.video}
-            muted
-            playsInline
-            preload="metadata"
-            onLoadedMetadata={(event) => {
-  const video = event.currentTarget;
-  const cardImage = video.closest(".card-image") as HTMLElement | null;
+    display: "block",
+    width: "100%",
+    height: "100%",
+    objectFit: "contain",
+    objectPosition: "center",
+  }}
+/> 
+) : item.thumbnailUrl ? (
+<img
+  src={item.thumbnailUrl}
+  alt={`${item.title} thumbnail`}
+  onLoad={(event) => {
+    const img = event.currentTarget;
+    const cardImage = img.closest(".card-image") as HTMLElement | null;
 
-  if (cardImage && video.videoWidth && video.videoHeight) {
-    cardImage.style.aspectRatio = `${video.videoWidth} / ${video.videoHeight}`;
-  }
-}}
-           style={{
-  display: "block",
-  width: "100%",
-  height: "auto",
-  objectFit: "contain",
-  objectPosition: "center",
-}} 
-          />
-        ) : (
-          <div className="card-gradient" />
-        )}
+    if (!cardImage || !img.naturalWidth || !img.naturalHeight) return;
+
+    const isPortrait = img.naturalHeight > img.naturalWidth;
+
+    if (isPortrait) {
+      cardImage.style.width = "min(100%, 520px)";
+      cardImage.style.margin = "0 auto";
+      cardImage.style.aspectRatio =
+        `${img.naturalWidth} / ${img.naturalHeight}`;
+    } else {
+      cardImage.style.width = "100%";
+      cardImage.style.margin = "0";
+      cardImage.style.aspectRatio =
+        `${img.naturalWidth} / ${img.naturalHeight}`;
+    }
+  }}
+  style={{
+    display: "block",
+    width: "100%",
+    height: "auto",
+    maxWidth: "100%",
+    objectFit: "contain",
+    objectPosition: "center",
+  }}
+/>  
+) : (
+  <div className="card-gradient" />
+)}
 
         <div className="card-gradient" />
 
