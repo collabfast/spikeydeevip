@@ -14049,13 +14049,9 @@ function MainApp() {
       null
     );
 
-  const [
-    accessOpen,
-    setAccessOpen,
-  ] =
-    useState(
-      false
-    );
+ const [accessOpen, setAccessOpen] = useState(
+  () => window.location.pathname === "/signup"
+); 
 
   const [
     membership,
