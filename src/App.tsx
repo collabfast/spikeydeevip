@@ -393,8 +393,6 @@ const BUSINESS_PRINCIPAL = "Noah Wayne Curd";
 const BUSINESS_CITY = "Las Vegas";
 const BUSINESS_STATE = "Nevada";
 const BUSINESS_COUNTRY = "United States";
-const RECORDS_CUSTODIAN_NAME = "Serogon Investments LLC";
-const RECORDS_CUSTODIAN_ADDRESS = "6605 Grand Montecito Pkwy, Suite 100, Las Vegas, NV 89149, USA";
 const CCBILL_COMPLAINT_FORM =
   "https://www.ccbillcomplaintform.com/ccbill/form/CCBillContentRemovalRequest1/formperma/sBK2jfIoZWAFw2hRRt5Rv2PQncscFzpvOH6bPcwopas";
 
