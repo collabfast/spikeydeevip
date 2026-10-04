@@ -3203,7 +3203,7 @@ return;
         placeItems: "center",
         padding: "20px",
         overflowY: "auto",
-        background: "rgba(0,0,0,.94)",
+        background: "#000",
       }}
     >
       <section
