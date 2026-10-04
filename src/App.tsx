@@ -83,7 +83,8 @@ type HeaderNavTab =
   | "performers"
   | "apply"
   | "custom"
-  | "plans";
+  | "plans"
+  | "messages";
 
 type ViewMode =
   | "home"
@@ -94,6 +95,7 @@ type ViewMode =
   | "studio"
   | "apply"
   | "custom"
+  | "messages"
   | "legal";
 
 type LegalPageKey =
@@ -391,7 +393,7 @@ const BUSINESS_PRINCIPAL = "Noah Wayne Curd";
 const BUSINESS_CITY = "Las Vegas";
 const BUSINESS_STATE = "Nevada";
 const BUSINESS_COUNTRY = "United States";
-const RECORDS_CUSTODIAN_NAME = "Noah Wayne Curd";
+const RECORDS_CUSTODIAN_NAME = "Serogon Investments LLC";
 const RECORDS_CUSTODIAN_ADDRESS = "6605 Grand Montecito Pkwy, Suite 100, Las Vegas, NV 89149, USA";
 const CCBILL_COMPLAINT_FORM =
   "https://www.ccbillcomplaintform.com/ccbill/form/CCBillContentRemovalRequest1/formperma/sBK2jfIoZWAFw2hRRt5Rv2PQncscFzpvOH6bPcwopas";
@@ -3005,7 +3007,6 @@ type CheckoutReturnModalProps = {
 
 function CheckoutReturnModal({
   checkoutId,
-  onActivated,
   onClose,
 }: CheckoutReturnModalProps) {
   const [status, setStatus] = useState<CheckoutStatus>("pending");
@@ -3189,15 +3190,8 @@ if (!passwordMeetsRequirements) {
       PENDING_CHECKOUT_STORAGE_KEY
     );
 
-    onActivated({
-      level: result.plan,
-      expiresAt: result.expiresAt,
-      accessSessionId: result.accessSessionId,
-      customerEmail: result.email,
-    });
-
-    setCreating(false);
-    onClose();
+window.location.replace("/account");
+return;
   };
 
   return (
@@ -3825,7 +3819,8 @@ type AccountPageProps = {
 
   profile:
     Profile | null;
-
+adminAccess:
+  boolean;
   profileLoading:
     boolean;
 
@@ -3854,6 +3849,7 @@ type AccountPageProps = {
 function AccountPage({
   session,
   profile,
+  adminAccess,
   profileLoading,
   favoritesCount,
   membership,
@@ -3861,6 +3857,7 @@ function AccountPage({
   onStudio,
   onLogout,
   onBack,
+  
 }: AccountPageProps) {
   const [
     displayName,
@@ -4051,7 +4048,7 @@ function AccountPage({
                   >
                     Billing Support
                   </a>
-                  {profile?.is_admin && (
+                 {adminAccess && (
                     <button type="button" className="primary-button" onClick={onStudio} style={{ width: "100%" }}>
                       Open Studio
                     </button>
@@ -5184,6 +5181,383 @@ function ApplyToModelPage({ onBack }: { onBack: () => void }) {
    CUSTOM VIDEO REQUEST
    ========================================================= */
 
+function MemberMessagesPage({
+  session,
+  onBack,
+}: {
+  session: Session;
+  onBack: () => void;
+}) {
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [messageText, setMessageText] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState("");
+
+  const loadMessages = async () => {
+    setLoading(true);
+    setError("");
+
+    try {
+      const userId = session.user.id;
+
+      let { data: conversation, error: conversationError } = await supabase
+        .from("conversations")
+        .select("id")
+        .eq("member_id", userId)
+        .maybeSingle();
+
+      if (conversationError) throw conversationError;
+
+      if (!conversation) {
+        const { data: created, error: createError } = await supabase
+          .from("conversations")
+          .insert({
+            member_id: userId,
+          })
+          .select("id")
+          .single();
+
+        if (createError) throw createError;
+
+        conversation = created;
+      }
+
+      setConversationId(conversation.id);
+
+      const { data: messageRows, error: messageError } = await supabase
+        .from("messages")
+        .select("*")
+        .eq("conversation_id", conversation.id)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: true });
+
+      if (messageError) throw messageError;
+
+      setMessages(messageRows ?? []);
+    } catch (err) {
+      console.error(
+  "Could not load messages:",
+  JSON.stringify(err, null, 2)
+);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Could not load your messages."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+const markMemberMessagesRead = async (currentConversationId: string) => {
+  if (!session?.user?.id) return;
+
+  const readAt = new Date().toISOString();
+
+  const { error } = await supabase
+    .from("messages")
+    .update({
+      read_at: readAt,
+    })
+    .eq("conversation_id", currentConversationId)
+    .eq("sender_role", "admin")
+    .is("read_at", null);
+
+  if (error) {
+    console.error("Could not mark admin replies as read:", error);
+    return;
+  }
+
+  setMessages((current) =>
+    current.map((message) =>
+      message.sender_role === "admin" && !message.read_at
+        ? { ...message, read_at: readAt }
+        : message
+    )
+  );
+};
+  useEffect(() => {
+    void loadMessages();
+  }, [session.user.id]);
+
+  useEffect(() => {
+    if (!conversationId) return;
+
+    const channel = supabase
+      .channel(`member-messages-${conversationId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+          filter: `conversation_id=eq.${conversationId}`,
+        },
+        (payload) => {
+          const incoming = payload.new as any;
+
+          setMessages((current) => {
+            if (current.some((message) => message.id === incoming.id)) {
+              return current;
+            }
+
+            return [...current, incoming];
+          });
+
+          if (incoming.sender_role === "admin") {
+  void markMemberMessagesRead(conversationId);
+}
+        }
+      )
+      .on(
+  "postgres_changes",
+  {
+    event: "UPDATE",
+    schema: "public",
+    table: "messages",
+    filter: `conversation_id=eq.${conversationId}`,
+  },
+  (payload) => {
+    const updated = payload.new as any;
+
+    setMessages((current) =>
+      current.map((message) =>
+        message.id === updated.id ? { ...message, ...updated } : message
+      )
+    );
+  }
+)
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [conversationId]);
+
+  const sendMessage = async () => {
+    const body = messageText.trim();
+
+    if (!body || !conversationId || sending) return;
+
+    setSending(true);
+    setError("");
+
+    try {
+      const { data, error: sendError } = await supabase
+        .from("messages")
+        .insert({
+          conversation_id: conversationId,
+          sender_id: session.user.id,
+          sender_role: "member",
+          body,
+        })
+        .select("*")
+        .single();
+
+      if (sendError) throw sendError;
+
+      setMessageText("");
+
+      setMessages((current) => {
+        if (current.some((message) => message.id === data.id)) {
+          return current;
+        }
+
+        return [...current, data];
+      });
+    } catch (err) {
+      console.error("Could not send message:", err);
+      setError(
+        err instanceof Error ? err.message : "Message could not be sent."
+      );
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <main
+      style={{
+        minHeight: "100vh",
+        background: "#000",
+        color: "#fff",
+        padding: "120px 20px 40px",
+      }}
+    >
+      <div
+        style={{
+          width: "min(900px, 100%)",
+          margin: "0 auto",
+        }}
+      >
+        <button
+          type="button"
+          onClick={onBack}
+          style={{
+            background: "transparent",
+            border: 0,
+            color: "#999",
+            cursor: "pointer",
+            marginBottom: "24px",
+          }}
+        >
+          ← BACK
+        </button>
+
+        <div
+          style={{
+            border: "1px solid #222",
+            background: "#0a0a0a",
+            minHeight: "650px",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          <div
+            style={{
+              padding: "20px",
+              borderBottom: "1px solid #222",
+            }}
+          >
+            <strong>SPIKEY DEE</strong>
+            <div
+              style={{
+                color: "#777",
+                fontSize: "12px",
+                marginTop: "4px",
+              }}
+            >
+              Direct Messages
+            </div>
+          </div>
+
+          <div
+            style={{
+              flex: 1,
+              padding: "20px",
+              overflowY: "auto",
+            }}
+          >
+            {loading ? (
+              <div style={{ color: "#777" }}>Loading messages...</div>
+            ) : messages.length === 0 ? (
+              <div style={{ color: "#777", textAlign: "center", marginTop: "80px" }}>
+                Send Spikey Dee a message.
+              </div>
+            ) : (
+              messages.map((message) => {
+                const mine = message.sender_role === "member";
+
+                return (
+                  <div
+                    key={message.id}
+                    style={{
+                      display: "flex",
+                      justifyContent: mine ? "flex-end" : "flex-start",
+                      marginBottom: "12px",
+                    }}
+                  >
+<div
+  style={{
+    maxWidth: "75%",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: mine ? "flex-end" : "flex-start",
+    gap: "4px",
+  }}
+>
+  <div
+    style={{
+      padding: "12px 16px",
+      borderRadius: "18px",
+      background: mine ? "#d4af37" : "#1b1b1b",
+      color: mine ? "#000" : "#fff",
+    }}
+  >
+    {message.body}
+  </div>
+
+  {mine && (
+    <span
+      style={{
+        fontSize: "11px",
+        color: "var(--text-muted)",
+        paddingRight: "4px",
+      }}
+    >
+      {message.read_at ? "Read" : "Sent"}
+    </span>
+  )}
+</div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {error && (
+            <div
+              style={{
+                color: "#ff6b6b",
+                padding: "0 20px 12px",
+                fontSize: "13px",
+              }}
+            >
+              {error}
+            </div>
+          )}
+
+          <div
+            style={{
+              borderTop: "1px solid #222",
+              padding: "16px",
+              display: "flex",
+              gap: "10px",
+            }}
+          >
+            <input
+              value={messageText}
+              onChange={(event) => setMessageText(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  void sendMessage();
+                }
+              }}
+              placeholder="Type a message..."
+              style={{
+                flex: 1,
+                background: "#111",
+                color: "#fff",
+                border: "1px solid #333",
+                borderRadius: "22px",
+                padding: "12px 16px",
+                outline: "none",
+              }}
+            />
+
+            <button
+              type="button"
+              onClick={() => void sendMessage()}
+              disabled={sending || !messageText.trim()}
+              style={{
+                border: 0,
+                borderRadius: "22px",
+                padding: "0 22px",
+                fontWeight: 800,
+                cursor: "pointer",
+              }}
+            >
+              {sending ? "..." : "SEND"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}
+
 function CustomVideoRequestPage() {
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
@@ -5385,6 +5759,7 @@ type StudioDashboardTab =
   | "overview"
   | "homepage"
   | "videos"
+  | "messages"
   | "models"
   | "compliance";
 
@@ -5445,6 +5820,16 @@ function StudioDashboard({
 }: StudioDashboardProps) {
   const [studioTab, setStudioTab] =
     useState<StudioDashboardTab>("overview");
+
+const [adminConversations, setAdminConversations] = useState<any[]>([]);
+const [adminSelectedConversationId, setAdminSelectedConversationId] =
+  useState<string | null>(null);
+const [adminMessages, setAdminMessages] = useState<any[]>([]);
+const [adminMessageText, setAdminMessageText] = useState("");
+const [adminMessagesLoading, setAdminMessagesLoading] = useState(false);
+const [adminSendingMessage, setAdminSendingMessage] = useState(false);
+const [adminMessagesError, setAdminMessagesError] = useState("");
+
 const [managedPhotoSet, setManagedPhotoSet] = useState<VideoRecord | null>(null);
 
 const [managedPhotos, setManagedPhotos] = useState<
@@ -5458,8 +5843,12 @@ const [managedPhotos, setManagedPhotos] = useState<
 
 const [managedPhotosLoading, setManagedPhotosLoading] = useState(false);
 const [savingPhotoId, setSavingPhotoId] = useState<string | null>(null);
-  const openStudioTab = (tab: StudioDashboardTab) => {
+const openStudioTab = (tab: StudioDashboardTab) => {
     setStudioTab(tab);
+
+if (tab === "messages") {
+  void loadAdminConversations();
+}
 
     window.setTimeout(() => {
       document.getElementById("studio-tab-content")?.scrollIntoView({
@@ -5468,6 +5857,262 @@ const [savingPhotoId, setSavingPhotoId] = useState<string | null>(null);
       });
     }, 0);
   };
+  const loadAdminConversations = async () => {
+  setAdminMessagesLoading(true);
+  setAdminMessagesError("");
+
+  try {
+    const { data, error } = await supabase
+      .from("conversations")
+      .select(`
+        id,
+        member_id,
+        created_at,
+        updated_at
+      `)
+      .order("updated_at", { ascending: false });
+
+    if (error) throw error;
+
+    const conversations = data ?? [];
+
+    const conversationsWithDetails = await Promise.all(
+      conversations.map(async (conversation) => {
+        const { data: membership } = await supabase
+          .from("memberships")
+          .select("customer_email, plan, status")
+          .eq("user_id", conversation.member_id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+const { data: memberProfile } = await supabase
+  .from("profiles")
+  .select("display_name")
+  .eq("id", conversation.member_id)
+  .maybeSingle();
+        const { data: latestMessage } = await supabase
+          .from("messages")
+          .select("id, body, sender_id, created_at")
+          .eq("conversation_id", conversation.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+          const { count: unreadCount, error: unreadError } = await supabase
+  .from("messages")
+  .select("id", { count: "exact", head: true })
+  .eq("conversation_id", conversation.id)
+  .eq("sender_role", "member")
+  .is("read_at", null);
+
+if (unreadError) {
+  console.error("Could not load unread message count:", unreadError);
+}
+
+return {
+  ...conversation,
+  display_name: memberProfile?.display_name ?? "Member",
+  customer_email: membership?.customer_email ?? "",
+  membership_plan: membership?.plan ?? null,
+  membership_status: membership?.status ?? null,
+  latest_message: latestMessage ?? null,
+  unread_count: unreadCount ?? 0,
+};
+      })
+    );
+
+    conversationsWithDetails.sort((a, b) => {
+      const aTime =
+        a.latest_message?.created_at ?? a.updated_at ?? a.created_at;
+      const bTime =
+        b.latest_message?.created_at ?? b.updated_at ?? b.created_at;
+
+      return new Date(bTime).getTime() - new Date(aTime).getTime();
+    });
+
+    setAdminConversations(conversationsWithDetails);
+
+    if (
+      conversationsWithDetails.length > 0 &&
+      !adminSelectedConversationId
+    ) {
+      setAdminSelectedConversationId(conversationsWithDetails[0].id);
+    }
+  } catch (err) {
+    console.error("Could not load admin conversations:", err);
+
+    setAdminMessagesError(
+      err instanceof Error
+        ? err.message
+        : "Could not load member conversations."
+    );
+  } finally {
+    setAdminMessagesLoading(false);
+  }
+};
+const loadAdminMessages = async (conversationId: string) => {
+  setAdminMessagesLoading(true);
+  setAdminMessagesError("");
+
+  try {
+    const { data, error } = await supabase
+      .from("messages")
+      .select("id, conversation_id, sender_id, body, created_at")
+      .eq("conversation_id", conversationId)
+.order("created_at", { ascending: true });
+
+if (error) throw error;
+
+setAdminMessages(data ?? []);
+  } catch (err) {
+    console.error("Could not load admin messages:", err);
+
+    setAdminMessagesError(
+      err instanceof Error
+        ? err.message
+        : "Could not load conversation messages."
+    );
+
+    setAdminMessages([]);
+  } finally {
+    setAdminMessagesLoading(false);
+  }
+};
+const markAdminMessagesRead = async (conversationId: string) => {
+  if (!session?.user?.id) return;
+
+  const { error } = await supabase
+    .from("messages")
+    .update({
+      read_at: new Date().toISOString(),
+    })
+    .eq("conversation_id", conversationId)
+    .eq("sender_role", "member")
+    .is("read_at", null);
+
+  if (error) {
+    console.error("Could not mark admin messages as read:", error);
+    return;
+  }
+
+  setAdminMessages((current) =>
+    current.map((message) =>
+      message.sender_role === "member" && !message.read_at
+        ? { ...message, read_at: new Date().toISOString() }
+        : message
+    )
+  );
+await loadAdminConversations();
+};
+
+const sendAdminMessage = async () => {
+  const body = adminMessageText.trim();
+
+  if (!body || !adminSelectedConversationId || !session?.user?.id) {
+    return;
+  }
+
+  setAdminSendingMessage(true);
+  setAdminMessagesError("");
+
+  try {
+    const { error } = await supabase
+      .from("messages")
+      .insert({
+        conversation_id: adminSelectedConversationId,
+        sender_id: session.user.id,
+        sender_role: "admin",
+        body,
+      });
+
+    if (error) throw error;
+
+    setAdminMessageText("");
+
+    await loadAdminMessages(adminSelectedConversationId);
+    await loadAdminConversations();
+  } catch (err) {
+    console.error("Could not send admin message:", err);
+
+    setAdminMessagesError(
+      err instanceof Error
+        ? err.message
+        : "Could not send message."
+    );
+  } finally {
+    setAdminSendingMessage(false);
+  }
+};
+useEffect(() => {
+  if (!adminSelectedConversationId) return;
+
+  const channel = supabase
+    .channel(`admin-messages-${adminSelectedConversationId}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "messages",
+        filter: `conversation_id=eq.${adminSelectedConversationId}`,
+      },
+(payload) => {
+  const incoming = payload.new as any;
+console.log("ADMIN INCOMING MESSAGE:", incoming);
+  setAdminMessages((current) => {
+    if (current.some((message) => message.id === incoming.id)) {
+      return current;
+    }
+
+    return [...current, incoming];
+  });
+
+if (incoming.sender_role === "member") {
+ void supabase
+  .from("messages")
+  .update({ read_at: new Date().toISOString() })
+  .eq("id", incoming.id)
+  .select("id, read_at")
+  .then(({ data, error }) => {
+    console.log("ADMIN READ UPDATE:", {
+      messageId: incoming.id,
+      data,
+      error,
+    });
+  });
+}
+
+  void loadAdminConversations();
+}
+    )
+    .on(
+  "postgres_changes",
+  {
+    event: "UPDATE",
+    schema: "public",
+    table: "messages",
+    filter: `conversation_id=eq.${adminSelectedConversationId}`,
+  },
+  (payload) => {
+    const updated = payload.new as any;
+    console.log("FAN MESSAGE UPDATE:", updated);
+
+    setAdminMessages((current) =>
+      current.map((message) =>
+        message.id === updated.id ? { ...message, ...updated } : message
+      )
+    );
+
+    void loadAdminConversations();
+  }
+)
+    .subscribe((status) => {
+  console.log("ADMIN REALTIME STATUS:", status);
+});
+
+  return () => {
+    void supabase.removeChannel(channel);
+  };
+}, [adminSelectedConversationId]);
   const openPhotoManager = async (video: VideoRecord) => {
     setManagedPhotoSet(video);
     setManagedPhotos([]);
@@ -8742,6 +9387,7 @@ const togglePublished = async (video: VideoRecord) => {
                 ["overview", "Overview"],
                 ["homepage", "Homepage"],
                 ["videos", "Videos"],
+                ["messages", "Messages"],
                 ["models", "Models"],
                 ["compliance", "Compliance & 2257"],
               ] as Array<[StudioDashboardTab, string]>
@@ -10285,6 +10931,281 @@ const togglePublished = async (video: VideoRecord) => {
 
             </>
           )}
+{studioTab === "messages" && (
+  <>
+    <div
+      style={{
+        padding: "26px",
+        border: "1px solid rgba(255,255,255,.09)",
+        borderRadius: "18px",
+        marginBottom: "20px",
+        background: "#101010",
+      }}
+    >
+      <span className="section-kicker">DIRECT MESSAGES</span>
+      <h2 style={{ margin: "8px 0" }}>Fan Messages</h2>
+      <p style={{ margin: 0, color: "var(--text-muted)" }}>
+        View and reply to messages from your members.
+      </p>
+    </div>
+
+    {adminMessagesError && (
+      <div
+        style={{
+          padding: "14px 16px",
+          marginBottom: "16px",
+          border: "1px solid rgba(255,80,80,.25)",
+          borderRadius: "12px",
+        }}
+      >
+        <span style={{ color: "#ff6b6b" }}>
+          {adminMessagesError}
+        </span>
+      </div>
+    )}
+
+    {adminMessagesLoading ? (
+      <div
+        style={{
+          padding: "40px",
+          textAlign: "center",
+          color: "var(--text-muted)",
+        }}
+      >
+        Loading conversations...
+      </div>
+    ) : adminConversations.length === 0 ? (
+      <div
+        style={{
+          padding: "40px",
+          border: "1px solid rgba(255,255,255,.09)",
+          borderRadius: "18px",
+          textAlign: "center",
+          color: "var(--text-muted)",
+        }}
+      >
+        No fan messages yet.
+      </div>
+    ) : (
+      <div
+        style={{
+          display: "grid",
+          gap: "12px",
+        }}
+      >
+        {adminConversations.map((conversation: any) => (
+          <button
+            key={conversation.id}
+            type="button"
+onClick={() => {
+  setAdminSelectedConversationId(conversation.id);
+  void loadAdminMessages(conversation.id);
+  void markAdminMessagesRead(conversation.id);
+}}
+            style={{
+              width: "100%",
+              padding: "18px",
+              border:
+                adminSelectedConversationId === conversation.id
+                  ? "1px solid var(--gold-2)"
+                  : "1px solid rgba(255,255,255,.09)",
+              borderRadius: "14px",
+              background:
+                adminSelectedConversationId === conversation.id
+                  ? "rgba(231,187,69,.08)"
+                  : "#101010",
+              color: "#fff",
+              textAlign: "left",
+              cursor: "pointer",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "16px",
+                alignItems: "center",
+              }}
+            >
+              <div style={{ minWidth: 0 }}>
+ <strong
+  style={{
+    display: "block",
+    marginBottom: "4px",
+  }}
+>
+  {conversation.display_name || "Member"}
+</strong>             
+
+<span
+  style={{
+    display: "block",
+    color: "var(--text-muted)",
+    fontSize: "12px",
+    marginBottom: "6px",
+  }}
+>
+  {conversation.customer_email}
+</span>
+
+                <span
+                  style={{
+                    display: "block",
+                    color: "var(--text-muted)",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {conversation.latest_message?.body ||
+                    "No messages yet"}
+                </span>
+              </div>
+
+              <span
+                style={{
+                  color: "var(--text-muted)",
+                  fontSize: "12px",
+                  flexShrink: 0,
+                }}
+              >
+                {conversation.unread_count > 0
+  ? `NEW · ${conversation.unread_count}`
+  : conversation.membership_plan || "Member"}
+              </span>
+            </div>
+          </button>
+        ))}
+      </div>
+      )}
+     {adminSelectedConversationId && (
+  <div
+    style={{
+      marginTop: "18px",
+      border: "1px solid rgba(255,255,255,.09)",
+      borderRadius: "18px",
+      background: "#101010",
+      overflow: "hidden",
+    }}
+  >
+    <div
+      style={{
+        padding: "18px 20px",
+        borderBottom: "1px solid rgba(255,255,255,.09)",
+      }}
+    >
+      <strong style={{ display: "block" }}>
+        {adminConversations.find(
+          (conversation: any) =>
+            conversation.id === adminSelectedConversationId
+        )?.display_name || "Member"}
+      </strong>
+
+      <span
+        style={{
+          color: "var(--text-muted)",
+          fontSize: "12px",
+        }}
+      >
+        Conversation
+      </span>
+    </div>
+
+    <div
+      style={{
+        padding: "20px",
+        minHeight: "260px",
+        display: "flex",
+        flexDirection: "column",
+        gap: "10px",
+      }}
+    >
+      {adminMessagesLoading ? (
+        <div style={{ color: "var(--text-muted)" }}>
+          Loading messages...
+        </div>
+      ) : adminMessages.length === 0 ? (
+        <div style={{ color: "var(--text-muted)" }}>
+          No messages yet.
+        </div>
+      ) : (
+        adminMessages.map((message: any) => {
+          const fromAdmin = message.sender_id === session.user.id;
+
+          return (
+<div
+  key={message.id}
+  style={{
+    alignSelf: fromAdmin ? "flex-end" : "flex-start",
+    maxWidth: "75%",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: fromAdmin ? "flex-end" : "flex-start",
+    gap: "4px",
+  }}
+>
+  <div
+    style={{
+      padding: "10px 14px",
+      borderRadius: "14px",
+      background: fromAdmin
+        ? "var(--gold-2)"
+        : "rgba(255,255,255,.07)",
+      color: fromAdmin ? "#101010" : "#fff",
+    }}
+  >
+    {message.body}
+  </div>
+
+  {fromAdmin && (
+    <span
+      style={{
+        fontSize: "11px",
+        color: "var(--text-muted)",
+        paddingRight: "4px",
+      }}
+    >
+      {message.read_at ? "Read" : "Sent"}
+    </span>
+  )}
+</div>
+          );
+        })
+      )}
+    </div>
+
+    <div
+      style={{
+        display: "flex",
+        gap: "10px",
+        padding: "16px",
+        borderTop: "1px solid rgba(255,255,255,.09)",
+      }}
+    >
+      <input
+        type="text"
+        value={adminMessageText}
+        onChange={(event) => setAdminMessageText(event.target.value)}
+        placeholder="Reply to member..."
+        style={{
+          flex: 1,
+          minWidth: 0,
+        }}
+      />
+
+      <button
+        type="button"
+        className="primary-button"
+        onClick={() => void sendAdminMessage()}
+        disabled={!adminMessageText.trim() || adminSendingMessage}
+      >
+        {adminSendingMessage ? "Sending..." : "Send"}
+      </button>
+    </div>
+  </div>
+)}
+  </>
+)}
 
           {studioTab === "models" && (
             <>
@@ -12698,7 +13619,19 @@ function SiteHeader({
   >
     VIDEOS
   </button>
-
+{session && accessActive && (
+  <button
+    type="button"
+    aria-current={activeNav === "messages" ? "page" : undefined}
+    className={desktopNavButtonClass("messages")}
+    onClick={() => {
+      closeMenu();
+      onActiveNavChange("messages");
+    }}
+  >
+    MESSAGES
+  </button>
+)}
   <button
     type="button"
     aria-current={activeNav === "performers" ? "page" : undefined}
@@ -13350,54 +14283,83 @@ const legalCopy: Record<LegalPageKey, LegalPageContent> = {
         heading: "Age Verification",
         body: (
           <div>
-            <p>
-              All performers appearing in visual depictions of actual sexually
-              explicit conduct produced by Spikeydee VIP were 18 years of age
-              or older at the time of production.
-            </p>
-            <p>
-              Performer age and identity documentation for covered productions
-              is obtained and maintained in accordance with applicable federal
-              record-keeping requirements.
-            </p>
+           <p>
+  In compliance with the Federal Labeling and Record-Keeping Law
+  (18 U.S.C. § 2257 and § 2257A, and 28 C.F.R. Part 75), all models,
+  actors, actresses and other persons who appear in any visual depiction
+  of actual or simulated sexually explicit conduct appearing on or
+  otherwise contained in spikeydeevip.com were over the age of eighteen
+  (18) years at the time the depiction was created.
+</p>
+
+<p>
+  spikeydeevip.com is a single-creator platform. All content is produced
+  by the site owner and may depict the site owner alone or together with
+  other consenting adult performers (collaborations). Before any content
+  is published, the identity and legal age of every person depicted is
+  verified against government-issued photo identification, and written
+  consent to be depicted and to have the content distributed on this Site
+  is obtained. Users of the Site cannot upload content.
+</p>
           </div>
         ),
       },
       {
         heading: "Custodian of Records",
         body: (
-          <div>
-            <p>
-              Records required pursuant to 18 U.S.C. § 2257 and applicable
-              provisions of 28 C.F.R. Part 75 are maintained by:
-            </p>
-            <p>
-              <strong>{RECORDS_CUSTODIAN_NAME}</strong>
-              <br />
-              Custodian of Records
-              <br />
-              Spikeydee VIP
-              <br />
-              {RECORDS_CUSTODIAN_ADDRESS}
-            </p>
-          </div>
+       <div>
+  <p>
+    The records required pursuant to 18 U.S.C. § 2257 and 28 C.F.R.
+    Part 75 with respect to all visual depictions on this Site are kept
+    by the Custodian of Records at the following location:
+  </p>
+
+  <p>
+    <strong>Serogon Investments LLC</strong>
+    <br />
+    Attn: Custodian of Records
+    <br />
+    6605 Grand Montecito Pkwy, Suite 100, Las Vegas, NV 89149, USA
+    <br />
+    United States
+    <br />
+    <strong>support@spikeydeevip.com</strong>
+  </p>
+</div>   
         ),
       },
-      {
-        heading: "Record-Keeping",
-        body: (
-          <p>
-            Required age and identity records for performers appearing in
-            covered productions are maintained by the Custodian of Records at
-            the location identified above and are available for inspection as
-            required by applicable law.
-          </p>
-        ),
-      },
-      {
-        heading: "Adults Only",
-        body: <p>Spikeydee VIP is intended only for adults age 18 or older.</p>,
-      },
+{
+  heading: "Record-Keeping",
+  body: (
+    <p>
+      Records are available for inspection by the Attorney General of the
+      United States or their delegate as provided by law, during normal
+      business hours and by appointment.
+    </p>
+  ),
+},
+{
+  heading: "Date of Production",
+  body: (
+    <p>
+      All content on this Site was produced after March 7th, 2002. The date
+      of production and the identification and consent records for each
+      depiction are maintained in the records referenced above, indexed by
+      the title, URL or unique identifier under which the depiction appears
+      on the Site.
+    </p>
+  ),
+},
+{
+  heading: "Contact",
+  body: (
+    <p>
+      Questions about this statement: Serogon Investments LLC ·{" "}
+      <strong>support@spikeydeevip.com</strong>. See also our Terms of
+      Service, Complaints Policy and Content Removal &amp; Appeals Policy.
+    </p>
+  ),
+},
     ],
   },
 
@@ -14220,17 +15182,25 @@ const [, setActiveBrandStartIndex] = useState(0);
         return;
       }
 
-      if (path === "/account") {
-        setAuthOpen(false);
-        setPasswordResetOpen(false);
+if (path === "/account") {
+  setAuthOpen(false);
+  setPasswordResetOpen(false);
+  setViewMode("account");
+  return;
+}
+if (path === "/messages") {
+  setAuthOpen(false);
+  setPasswordResetOpen(false);
 
-        if (session) {
-          setViewMode("account");
-        }
+  if (session) {
+    setActiveNav("messages");
+    setViewMode("messages");
+  } else {
+    setAuthOpen(true);
+  }
 
-        return;
-      }
-
+  return;
+}
       if (path === "/studio-reset-password" || path === "/member-reset-password") {
         setAuthOpen(false);
         setPasswordResetOpen(true);
@@ -15573,7 +16543,22 @@ const openLegalPage = (
           showCustomRequest
         }
         activeNav={activeNav}
-        onActiveNavChange={setActiveNav}
+        onActiveNavChange={(tab) => {
+  setActiveNav(tab);
+
+  if (tab === "messages") {
+    setSelectedItem(null);
+    setSearchOpen(false);
+    setMenuOpen(false);
+    setViewMode("messages");
+
+    if (window.location.pathname !== "/messages") {
+      window.history.pushState({}, "", "/messages");
+    }
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+}}
         onLegal={
           openLegalPage
         }
@@ -15618,6 +16603,11 @@ const openLegalPage = (
         <ApplyToModelPage onBack={goHome} />
       ) : viewMode === "custom" ? (
         <CustomVideoRequestPage />
+      ) : viewMode === "messages" && session ? (
+  <MemberMessagesPage
+    session={session}
+    onBack={goHome}
+  /> 
       ) : viewMode ===
         "detail" &&
       selectedItem ? (
@@ -15736,8 +16726,11 @@ onNextVideo={() => {
           session={
             session
           }
-          profile={
-            profile
+         profile={
+           profile
+          }
+          adminAccess={
+            adminAccess
           }
           profileLoading={
             profileLoading
@@ -16277,7 +17270,10 @@ until cancelled.
         </main>
       )}
 
-      {accessOpen && (
+    {accessOpen &&
+  !checkoutReturnOpen &&
+  window.location.pathname !== "/checkout/return" &&
+  window.location.pathname !== "/account" && (
         <AccessModal
           currentAccess={accessActive ? membership.level : "none"}
           initialEmail={membership.customerEmail ?? ""}
