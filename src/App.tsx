@@ -17924,10 +17924,11 @@ until cancelled.
         </main>
       )}
 
-    {accessOpen &&
-  !checkoutReturnOpen &&
-  window.location.pathname !== "/checkout/return" &&
-  window.location.pathname !== "/account" && (
+  {accessOpen &&
+ !checkoutReturnOpen &&
+ window.location.pathname !== "/checkout/return" &&
+ window.location.pathname !== "/account" &&
+ window.location.pathname !== "/messages" && (
         <AccessModal
           currentAccess={accessActive ? membership.level : "none"}
           initialEmail={membership.customerEmail ?? ""}
