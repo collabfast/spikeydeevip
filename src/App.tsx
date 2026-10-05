@@ -14574,10 +14574,9 @@ function SiteHeader({
               type="button"
               className="secondary-button"
               onClick={() => {
-                closeMenu();
-                onActiveNavChange("custom");
-                onCustomRequest();
-              }}
+  closeMenu();
+  window.location.href = "/messages";
+}}
               style={{
                 minHeight: "54px",
                 display: "flex",
@@ -14586,7 +14585,7 @@ function SiteHeader({
                 textAlign: "center",
               }}
             >
-              CUSTOM VIDEO
+              MESSAGE
             </button>
 
             <button
