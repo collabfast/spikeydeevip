@@ -60,7 +60,19 @@ Deno.serve(async (req) => {
     ) {
       return new Response("Invalid client subaccount", { status: 403 });
     }
+const purchaseId =
+  getValue(
+    payload,
+    "purchase_id",
+    "purchaseId",
+  ) ?? "";
 
+const attachmentId =
+  getValue(
+    payload,
+    "attachment_id",
+    "attachmentId",
+  ) ?? "";
     const checkoutId =
       getValue(
         payload,
@@ -77,12 +89,13 @@ Deno.serve(async (req) => {
         "subscriptionId",
       ) ?? "";
 
-    if (!checkoutId || !subscriptionId) {
-      console.error("Missing checkout correlation", payload);
-      return new Response("Missing checkout_id or subscription_id", {
-        status: 400,
-      });
-    }
+ if (!purchaseId && (!checkoutId || !subscriptionId)) {
+  console.error("Missing payment correlation", payload);
+  return new Response(
+    "Missing purchase_id or membership checkout correlation",
+    { status: 400 },
+  );
+}
 
     const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -94,7 +107,105 @@ Deno.serve(async (req) => {
         },
       },
     );
+// ---------------------------------
+// Paid message attachment purchase
+// ---------------------------------
+if (purchaseId) {
+  if (!attachmentId) {
+    return new Response("Missing attachment_id", {
+      status: 400,
+    });
+  }
 
+  const {
+    data: purchase,
+    error: purchaseError,
+  } = await admin
+    .from("message_attachment_purchases")
+    .select("*")
+    .eq("id", purchaseId)
+    .single();
+
+  if (purchaseError || !purchase) {
+    console.error("Message purchase not found", {
+      purchaseId,
+      purchaseError,
+    });
+
+    return new Response("Unknown message purchase", {
+      status: 404,
+    });
+  }
+
+  if (String(purchase.attachment_id) !== attachmentId) {
+    console.error("Attachment mismatch", {
+      purchaseId,
+      expected: purchase.attachment_id,
+      received: attachmentId,
+    });
+
+    return new Response("Attachment mismatch", {
+      status: 403,
+    });
+  }
+
+  const initialPriceRaw =
+    getValue(payload, "initialPrice", "initial_price");
+
+  const initialPrice =
+    initialPriceRaw ? Number(initialPriceRaw) : NaN;
+
+  const expectedAmount =
+    Number(purchase.amount_cents) / 100;
+
+  if (
+    Number.isFinite(initialPrice) &&
+    Math.abs(initialPrice - expectedAmount) > 0.01
+  ) {
+    console.error("Unexpected message purchase amount", {
+      purchaseId,
+      initialPrice,
+      expectedAmount,
+    });
+
+    return new Response(
+      "Unexpected transaction amount",
+      { status: 403 },
+    );
+  }
+
+  const transactionId =
+    getValue(
+      payload,
+      "transactionId",
+      "transaction_id",
+      "reservationId",
+    ) ?? null;
+
+  const paidAt = new Date().toISOString();
+
+  const { error: updatePurchaseError } =
+    await admin
+      .from("message_attachment_purchases")
+      .update({
+        status: "paid",
+        ccbill_transaction_id: transactionId,
+        paid_at: paidAt,
+      })
+      .eq("id", purchaseId);
+
+  if (updatePurchaseError) {
+    throw new Error(updatePurchaseError.message);
+  }
+
+  console.log("MESSAGE ATTACHMENT PURCHASE PAID", {
+    purchaseId,
+    attachmentId,
+    transactionId,
+  });
+
+  return new Response("OK", { status: 200 });
+}
     const { data: checkout, error: checkoutError } =
       await admin
         .from("membership_checkouts")
@@ -145,7 +256,62 @@ Deno.serve(async (req) => {
 
     const now = new Date();
     const expiresAt = calculateExpiration(plan, now);
+const responseDigest =
+  getValue(
+    payload,
+    "responseDigest",
+    "response_digest",
+  ) ?? "";
 
+const ccbillSubscriptionId =
+  getValue(
+    payload,
+    "subscriptionId",
+    "subscription_id",
+  ) ?? "";
+
+const dynamicPricingKey =
+  Deno.env.get("CCBILL_DYNAMIC_PRICING_KEY") ?? "";
+
+if (
+  !responseDigest ||
+  !ccbillSubscriptionId ||
+  !dynamicPricingKey
+) {
+  console.error("Missing CCBill digest verification data", {
+    purchaseId,
+    hasResponseDigest: Boolean(responseDigest),
+    hasSubscriptionId: Boolean(ccbillSubscriptionId),
+    hasDynamicPricingKey: Boolean(dynamicPricingKey),
+  });
+
+  return new Response(
+    "Missing CCBill verification data",
+    { status: 403 },
+  );
+}
+
+const expectedResponseDigest =
+  md5(
+    ccbillSubscriptionId +
+    "1" +
+    dynamicPricingKey
+  );
+
+if (
+  responseDigest.toLowerCase() !==
+  expectedResponseDigest.toLowerCase()
+) {
+  console.error("Invalid CCBill responseDigest", {
+    purchaseId,
+    ccbillSubscriptionId,
+  });
+
+  return new Response(
+    "Invalid CCBill responseDigest",
+    { status: 403 },
+  );
+}
     const transactionId =
       getValue(
         payload,

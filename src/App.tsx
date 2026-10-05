@@ -5192,7 +5192,13 @@ function MemberMessagesPage({
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+const [selectedFile, setSelectedFile] = useState<File | null>(null);
+const [attachmentPreview, setAttachmentPreview] = useState<string | null>(null);
+const [uploadingAttachment, setUploadingAttachment] = useState(false);
 
+const [attachmentUrls, setAttachmentUrls] = useState<
+  Record<string, string>
+>({});
   const loadMessages = async () => {
     setLoading(true);
     setError("");
@@ -5226,12 +5232,60 @@ function MemberMessagesPage({
 
       const { data: messageRows, error: messageError } = await supabase
         .from("messages")
-        .select("*")
+       .select(`
+  *,
+message_attachments (
+  id,
+  storage_path,
+  media_type,
+  mime_type,
+  file_size,
+  price_cents,
+  is_paid
+)
+`)
         .eq("conversation_id", conversation.id)
         .is("deleted_at", null)
         .order("created_at", { ascending: true });
 
       if (messageError) throw messageError;
+      console.log("MESSAGE ROWS WITH ATTACHMENTS:", messageRows);
+      const { data: purchaseRows, error: purchaseError } = await supabase
+  .from("message_attachment_purchases")
+  .select("attachment_id")
+  .eq("user_id", userId)
+  .eq("status", "paid");
+
+if (purchaseError) throw purchaseError;
+
+const purchasedAttachmentIds = new Set(
+  (purchaseRows ?? []).map((purchase: any) => purchase.attachment_id)
+);
+
+      const signedUrls: Record<string, string> = {};
+
+for (const message of messageRows ?? []) {
+  for (const attachment of message.message_attachments ?? []) {
+
+   const isLocked =
+  attachment.is_paid === true &&
+  !purchasedAttachmentIds.has(attachment.id);
+
+if (isLocked) {
+  continue;
+} 
+    const { data: signedData, error: signedError } =
+      await supabase.storage
+        .from("message-media")
+        .createSignedUrl(attachment.storage_path, 60 * 60);
+
+    if (!signedError && signedData?.signedUrl) {
+      signedUrls[attachment.id] = signedData.signedUrl;
+    }
+  }
+}
+
+setAttachmentUrls(signedUrls);
 
       setMessages(messageRows ?? []);
     } catch (err) {
@@ -5332,14 +5386,40 @@ const markMemberMessagesRead = async (currentConversationId: string) => {
       void supabase.removeChannel(channel);
     };
   }, [conversationId]);
+const handleAttachmentSelect = (
+  event: React.ChangeEvent<HTMLInputElement>
+) => {
+  const file = event.target.files?.[0];
 
+  if (!file) return;
+
+  const isPhoto = file.type.startsWith("image/");
+  const isVideo = file.type.startsWith("video/");
+
+  if (!isPhoto && !isVideo) {
+    setError("Only photos and videos can be attached.");
+    event.target.value = "";
+    return;
+  }
+
+  setError("");
+  setSelectedFile(file);
+
+  if (attachmentPreview) {
+    URL.revokeObjectURL(attachmentPreview);
+  }
+
+  setAttachmentPreview(URL.createObjectURL(file));
+};
   const sendMessage = async () => {
-    const body = messageText.trim();
+  const body = messageText.trim();
 
-    if (!body || !conversationId || sending) return;
+  // Allow text-only, media-only, or text + media messages.
+  if ((!body && !selectedFile) || !conversationId || sending) return;
 
-    setSending(true);
-    setError("");
+  setSending(true);
+  setError("");
+  setUploadingAttachment(Boolean(selectedFile));
 
     try {
       const { data, error: sendError } = await supabase
@@ -5354,7 +5434,52 @@ const markMemberMessagesRead = async (currentConversationId: string) => {
         .single();
 
       if (sendError) throw sendError;
+if (selectedFile) {
+  const extension =
+    selectedFile.name.split(".").pop()?.toLowerCase() || "bin";
 
+  const filePath =
+    `${session.user.id}/${conversationId}/${data.id}-${Date.now()}.${extension}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("message-media")
+    .upload(filePath, selectedFile, {
+      cacheControl: "3600",
+      upsert: false,
+      contentType: selectedFile.type,
+    });
+
+  if (uploadError) {
+    throw uploadError;
+  }
+
+  const mediaType =
+    selectedFile.type.startsWith("video/")
+      ? "video"
+      : "photo";
+
+  const { error: attachmentError } = await supabase
+    .from("message_attachments")
+    .insert({
+      message_id: data.id,
+      storage_path: filePath,
+      media_type: mediaType,
+      mime_type: selectedFile.type || null,
+      file_size: selectedFile.size,
+    });
+
+  if (attachmentError) {
+    throw attachmentError;
+  }
+
+  setSelectedFile(null);
+
+  if (attachmentPreview) {
+    URL.revokeObjectURL(attachmentPreview);
+  }
+
+  setAttachmentPreview(null);
+}
       setMessageText("");
 
       setMessages((current) => {
@@ -5369,9 +5494,10 @@ const markMemberMessagesRead = async (currentConversationId: string) => {
       setError(
         err instanceof Error ? err.message : "Message could not be sent."
       );
-    } finally {
-      setSending(false);
-    }
+   } finally {
+  setSending(false);
+  setUploadingAttachment(false);
+} 
   };
 
   return (
@@ -5473,7 +5599,147 @@ const markMemberMessagesRead = async (currentConversationId: string) => {
       color: mine ? "#000" : "#fff",
     }}
   >
-    {message.body}
+   {message.body && <div>{message.body}</div>}
+
+{(message.message_attachments ?? []).map((attachment: any) => {
+  const url = attachmentUrls[attachment.id];
+
+if (!url && attachment.is_paid && attachment.price_cents) {
+  const price = (attachment.price_cents / 100).toFixed(2);
+
+  return (
+    <div
+      key={attachment.id}
+      style={{
+        width: "100%",
+        maxWidth: "420px",
+        minHeight: "220px",
+        marginTop: message.body ? "8px" : "0",
+        borderRadius: "10px",
+        background: "#111",
+        border: "1px solid rgba(255,255,255,.12)",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "10px",
+        padding: "24px",
+        boxSizing: "border-box",
+        textAlign: "center",
+      }}
+    >
+      <div style={{ fontSize: "28px" }}>🔒</div>
+
+      <div
+        style={{
+          fontSize: "13px",
+          fontWeight: 800,
+          letterSpacing: ".08em",
+        }}
+      >
+        LOCKED MEDIA
+      </div>
+
+      <div
+        style={{
+          fontSize: "22px",
+          fontWeight: 800,
+        }}
+      >
+        ${price}
+      </div>
+<button
+  type="button"
+  onClick={async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        "ccbill-message-checkout-start",
+        {
+          body: {
+            attachment_id: attachment.id,
+          },
+        },
+      );
+
+      if (error) {
+        throw error;
+      }
+
+      if (!data?.ok || !data?.checkoutUrl) {
+        throw new Error(
+          data?.message || "Could not start checkout.",
+        );
+      }
+
+      window.location.href = data.checkoutUrl;
+    } catch (error) {
+      console.error(
+        "Could not start media checkout:",
+        error,
+      );
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Could not start checkout.",
+      );
+    }
+  }}
+  style={{
+    border: 0,
+    borderRadius: "8px",
+    padding: "11px 18px",
+    fontWeight: 800,
+    cursor: "pointer",
+  }}
+>
+  UNLOCK ${price}
+</button>
+</div>
+);
+}
+
+if (!url) return null;
+  if (attachment.media_type === "photo") {
+    return (
+      <img
+        key={attachment.id}
+        src={url}
+        alt="Message attachment"
+        style={{
+          display: "block",
+          width: "100%",
+          maxWidth: "420px",
+          height: "auto",
+          marginTop: message.body ? "8px" : "0",
+          borderRadius: "10px",
+        }}
+      />
+    );
+  }
+
+  if (attachment.media_type === "video") {
+    return (
+      <video
+        key={attachment.id}
+        src={url}
+        controls
+        playsInline
+        preload="metadata"
+        style={{
+          display: "block",
+          width: "100%",
+          maxWidth: "420px",
+          height: "auto",
+          marginTop: message.body ? "8px" : "0",
+          borderRadius: "10px",
+        }}
+      />
+    );
+  }
+
+  return null;
+})}
   </div>
 
   {mine && (
@@ -5506,51 +5772,152 @@ const markMemberMessagesRead = async (currentConversationId: string) => {
             </div>
           )}
 
-          <div
-            style={{
-              borderTop: "1px solid #222",
-              padding: "16px",
-              display: "flex",
-              gap: "10px",
-            }}
-          >
-            <input
-              value={messageText}
-              onChange={(event) => setMessageText(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && !event.shiftKey) {
-                  event.preventDefault();
-                  void sendMessage();
-                }
-              }}
-              placeholder="Type a message..."
-              style={{
-                flex: 1,
-                background: "#111",
-                color: "#fff",
-                border: "1px solid #333",
-                borderRadius: "22px",
-                padding: "12px 16px",
-                outline: "none",
-              }}
-            />
+<div
+  style={{
+    borderTop: "1px solid #222",
+    padding: "16px",
+  }}
+>
+  {attachmentPreview && selectedFile && (
+    <div
+      style={{
+        position: "relative",
+        marginBottom: "12px",
+        width: "fit-content",
+        maxWidth: "220px",
+      }}
+    >
+      {selectedFile.type.startsWith("image/") ? (
+        <img
+          src={attachmentPreview}
+          alt="Attachment preview"
+          style={{
+            display: "block",
+            maxWidth: "220px",
+            maxHeight: "220px",
+            objectFit: "cover",
+            borderRadius: "10px",
+          }}
+        />
+      ) : (
+        <video
+          src={attachmentPreview}
+          controls
+          style={{
+            display: "block",
+            maxWidth: "220px",
+            maxHeight: "220px",
+            borderRadius: "10px",
+          }}
+        />
+      )}
 
-            <button
-              type="button"
-              onClick={() => void sendMessage()}
-              disabled={sending || !messageText.trim()}
-              style={{
-                border: 0,
-                borderRadius: "22px",
-                padding: "0 22px",
-                fontWeight: 800,
-                cursor: "pointer",
-              }}
-            >
-              {sending ? "..." : "SEND"}
-            </button>
-          </div>
-        </div>
+      <button
+        type="button"
+        onClick={() => {
+          setSelectedFile(null);
+          setAttachmentPreview(null);
+        }}
+        style={{
+          position: "absolute",
+          top: "6px",
+          right: "6px",
+          width: "28px",
+          height: "28px",
+          border: 0,
+          borderRadius: "50%",
+          background: "rgba(0,0,0,.75)",
+          color: "#fff",
+          cursor: "pointer",
+          fontSize: "16px",
+        }}
+        aria-label="Remove attachment"
+      >
+        ×
+      </button>
+    </div>
+  )}
+
+  <div
+    style={{
+      display: "flex",
+      gap: "10px",
+      alignItems: "center",
+    }}
+  >
+    <input
+      id="member-message-attachment"
+      type="file"
+      accept="image/*,video/*"
+      onChange={handleAttachmentSelect}
+      style={{ display: "none" }}
+    />
+
+    <label
+      htmlFor="member-message-attachment"
+      title="Attach photo or video"
+      style={{
+        width: "44px",
+        height: "44px",
+        flex: "0 0 44px",
+        display: "grid",
+        placeItems: "center",
+        border: "1px solid #333",
+        borderRadius: "12px",
+        background: "#111",
+        color: "#fff",
+        cursor: uploadingAttachment ? "not-allowed" : "pointer",
+        opacity: uploadingAttachment ? 0.5 : 1,
+        fontSize: "20px",
+      }}
+    >
+      📎
+    </label>
+
+    <input
+      value={messageText}
+      onChange={(event) => setMessageText(event.target.value)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" && !event.shiftKey) {
+          event.preventDefault();
+          void sendMessage();
+        }
+      }}
+      placeholder={
+        uploadingAttachment ? "Uploading attachment..." : "Type a message..."
+      }
+      style={{
+        flex: 1,
+        background: "#111",
+        color: "#fff",
+        border: "1px solid #333",
+        borderRadius: "22px",
+        padding: "12px 16px",
+        outline: "none",
+      }}
+    />
+
+    <button
+      type="button"
+      onClick={() => void sendMessage()}
+      disabled={
+        sending ||
+        uploadingAttachment ||
+        (!messageText.trim() && !selectedFile)
+      }
+      style={{
+        border: 0,
+        borderRadius: "22px",
+        padding: "0 22px",
+        fontWeight: 800,
+        cursor: "pointer",
+      }}
+    >
+      {uploadingAttachment ? "UPLOADING..." : sending ? "..." : "SEND"}
+    </button>
+  </div>
+</div>
+</div>
       </div>
     </main>
   );
@@ -5827,6 +6194,13 @@ const [adminMessageText, setAdminMessageText] = useState("");
 const [adminMessagesLoading, setAdminMessagesLoading] = useState(false);
 const [adminSendingMessage, setAdminSendingMessage] = useState(false);
 const [adminMessagesError, setAdminMessagesError] = useState("");
+const [adminSelectedFile, setAdminSelectedFile] = useState<File | null>(null);
+const [adminMediaPrice, setAdminMediaPrice] = useState("");
+const [adminAttachmentPreview, setAdminAttachmentPreview] = useState<string | null>(null);
+const [adminUploadingAttachment, setAdminUploadingAttachment] = useState(false);
+const [adminAttachmentUrls, setAdminAttachmentUrls] = useState<
+  Record<string, string>
+>({});
 
 const [managedPhotoSet, setManagedPhotoSet] = useState<VideoRecord | null>(null);
 
@@ -5952,14 +6326,39 @@ const loadAdminMessages = async (conversationId: string) => {
   setAdminMessagesError("");
 
   try {
-    const { data, error } = await supabase
-      .from("messages")
-      .select("id, conversation_id, sender_id, body, created_at")
-      .eq("conversation_id", conversationId)
-.order("created_at", { ascending: true });
+const { data, error } = await supabase
+  .from("messages")
+  .select(`
+    *,
+    message_attachments (
+      id,
+      storage_path,
+      media_type,
+      mime_type,
+      file_size
+    )
+  `)
+  .eq("conversation_id", conversationId)
+  .is("deleted_at", null)
+  .order("created_at", { ascending: true });
 
 if (error) throw error;
+const signedUrls: Record<string, string> = {};
 
+for (const message of data ?? []) {
+  for (const attachment of message.message_attachments ?? []) {
+    const { data: signedData, error: signedError } =
+      await supabase.storage
+        .from("message-media")
+        .createSignedUrl(attachment.storage_path, 60 * 60);
+
+    if (!signedError && signedData?.signedUrl) {
+      signedUrls[attachment.id] = signedData.signedUrl;
+    }
+  }
+}
+
+setAdminAttachmentUrls(signedUrls);
 setAdminMessages(data ?? []);
   } catch (err) {
     console.error("Could not load admin messages:", err);
@@ -6005,24 +6404,92 @@ await loadAdminConversations();
 const sendAdminMessage = async () => {
   const body = adminMessageText.trim();
 
-  if (!body || !adminSelectedConversationId || !session?.user?.id) {
+  // Allow text-only, media-only, or text + media.
+  if (
+    (!body && !adminSelectedFile) ||
+    !adminSelectedConversationId ||
+    !session?.user?.id ||
+    adminSendingMessage
+  ) {
     return;
   }
 
   setAdminSendingMessage(true);
+  setAdminUploadingAttachment(Boolean(adminSelectedFile));
   setAdminMessagesError("");
 
   try {
-    const { error } = await supabase
+    // Create the message first so the attachment can reference its ID.
+    const { data: message, error: messageError } = await supabase
       .from("messages")
       .insert({
         conversation_id: adminSelectedConversationId,
         sender_id: session.user.id,
         sender_role: "admin",
         body,
-      });
+      })
+      .select("*")
+      .single();
 
-    if (error) throw error;
+    if (messageError) throw messageError;
+
+    if (adminSelectedFile) {
+      const extension =
+        adminSelectedFile.name.split(".").pop()?.toLowerCase() || "bin";
+
+      const filePath =
+        `${session.user.id}/${adminSelectedConversationId}/` +
+        `${message.id}-${Date.now()}.${extension}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("message-media")
+        .upload(filePath, adminSelectedFile, {
+          cacheControl: "3600",
+          upsert: false,
+          contentType: adminSelectedFile.type,
+        });
+
+      if (uploadError) throw uploadError;
+
+      const mediaType = adminSelectedFile.type.startsWith("video/")
+        ? "video"
+        : "photo";
+const parsedPrice = adminMediaPrice.trim()
+  ? Number(adminMediaPrice)
+  : null;
+
+if (
+  parsedPrice !== null &&
+  (!Number.isFinite(parsedPrice) || parsedPrice < 1 || parsedPrice > 299)
+) {
+  throw new Error("Paid media price must be between $1 and $299.");
+}
+
+const priceCents =
+  parsedPrice === null ? null : Math.round(parsedPrice * 100);
+      const { error: attachmentError } = await supabase
+        .from("message_attachments")
+.insert({
+  message_id: message.id,
+  storage_path: filePath,
+  media_type: mediaType,
+  mime_type: adminSelectedFile.type || null,
+  file_size: adminSelectedFile.size,
+  price_cents: priceCents,
+  is_paid: priceCents !== null,
+});
+
+      if (attachmentError) throw attachmentError;
+
+      setAdminSelectedFile(null);
+      setAdminMediaPrice("");
+
+      if (adminAttachmentPreview) {
+        URL.revokeObjectURL(adminAttachmentPreview);
+      }
+
+      setAdminAttachmentPreview(null);
+    }
 
     setAdminMessageText("");
 
@@ -6032,12 +6499,11 @@ const sendAdminMessage = async () => {
     console.error("Could not send admin message:", err);
 
     setAdminMessagesError(
-      err instanceof Error
-        ? err.message
-        : "Could not send message."
+      err instanceof Error ? err.message : "Could not send message."
     );
   } finally {
     setAdminSendingMessage(false);
+    setAdminUploadingAttachment(false);
   }
 };
 useEffect(() => {
@@ -11153,6 +11619,43 @@ onClick={() => {
     }}
   >
     {message.body}
+    {(message.message_attachments ?? []).map((attachment: any) => {
+  const url = adminAttachmentUrls[attachment.id];
+
+  if (!url) return null;
+
+  return attachment.media_type === "video" ? (
+    <video
+      key={attachment.id}
+      src={url}
+      controls
+      playsInline
+      preload="metadata"
+      style={{
+        display: "block",
+        width: "100%",
+        maxWidth: "420px",
+        height: "auto",
+        marginTop: message.body ? "8px" : "0",
+        borderRadius: "10px",
+      }}
+    />
+  ) : (
+    <img
+      key={attachment.id}
+      src={url}
+      alt="Message attachment"
+      style={{
+        display: "block",
+        width: "100%",
+        maxWidth: "420px",
+        height: "auto",
+        marginTop: message.body ? "8px" : "0",
+        borderRadius: "10px",
+      }}
+    />
+  );
+})}
   </div>
 
   {fromAdmin && (
@@ -11180,6 +11683,152 @@ onClick={() => {
         borderTop: "1px solid rgba(255,255,255,.09)",
       }}
     >
+      <label
+  style={{
+    width: "42px",
+    height: "42px",
+    border: "1px solid rgba(255,255,255,.18)",
+    borderRadius: "10px",
+    display: "grid",
+    placeItems: "center",
+    cursor: "pointer",
+    flexShrink: 0,
+  }}
+  aria-label="Attach photo or video"
+>
+  📎
+
+  <input
+    type="file"
+    accept="image/*,video/*"
+    disabled={adminSendingMessage}
+    onChange={(event) => {
+      const file = event.target.files?.[0] ?? null;
+
+      if (!file) return;
+
+      const isPhoto = file.type.startsWith("image/");
+      const isVideo = file.type.startsWith("video/");
+
+      if (!isPhoto && !isVideo) {
+        setAdminMessagesError(
+          "Only photos and videos can be attached."
+        );
+        event.target.value = "";
+        return;
+      }
+
+      if (adminAttachmentPreview) {
+        URL.revokeObjectURL(adminAttachmentPreview);
+      }
+
+      setAdminMessagesError("");
+      setAdminSelectedFile(file);
+      setAdminAttachmentPreview(URL.createObjectURL(file));
+
+      event.target.value = "";
+    }}
+    style={{ display: "none" }}
+  />
+</label>
+ {adminAttachmentPreview && adminSelectedFile && (
+  <div
+    style={{
+      position: "relative",
+      width: "fit-content",
+      maxWidth: "240px",
+      marginBottom: "10px",
+    }}
+  >
+    {adminSelectedFile.type.startsWith("image/") ? (
+      <img
+        src={adminAttachmentPreview}
+        alt="Attachment preview"
+        style={{
+          display: "block",
+          maxWidth: "240px",
+          maxHeight: "240px",
+          borderRadius: "10px",
+        }}
+      />
+    ) : (
+      <video
+        src={adminAttachmentPreview}
+        controls
+        style={{
+          display: "block",
+          maxWidth: "240px",
+          maxHeight: "240px",
+          borderRadius: "10px",
+        }}
+      />
+    )}
+
+    <div
+  style={{
+    marginTop: "10px",
+    width: "100%",
+  }}
+>
+  <label
+    style={{
+      display: "block",
+      fontSize: "11px",
+      fontWeight: 700,
+      marginBottom: "6px",
+      color: "#aaa",
+      textTransform: "uppercase",
+      letterSpacing: ".08em",
+    }}
+  >
+    Price $ (optional)
+  </label>
+
+  <input
+    type="number"
+    min="1"
+    max="299"
+    step="0.01"
+    placeholder="Free"
+    value={adminMediaPrice}
+    onChange={(event) => setAdminMediaPrice(event.target.value)}
+    style={{
+      width: "100%",
+      boxSizing: "border-box",
+      padding: "10px 12px",
+      borderRadius: "8px",
+      border: "1px solid rgba(255,255,255,.18)",
+      background: "#111",
+      color: "#fff",
+      outline: "none",
+    }}
+  />
+</div>
+    <button
+      type="button"
+      aria-label="Remove attachment"
+      onClick={() => {
+        URL.revokeObjectURL(adminAttachmentPreview);
+        setAdminSelectedFile(null);
+        setAdminAttachmentPreview(null);
+      }}
+      style={{
+        position: "absolute",
+        top: "6px",
+        right: "6px",
+        width: "28px",
+        height: "28px",
+        border: 0,
+        borderRadius: "50%",
+        background: "#111",
+        color: "#fff",
+        cursor: "pointer",
+      }}
+    >
+      ×
+    </button>
+  </div>
+)}     
       <input
         type="text"
         value={adminMessageText}
@@ -11195,9 +11844,16 @@ onClick={() => {
         type="button"
         className="primary-button"
         onClick={() => void sendAdminMessage()}
-        disabled={!adminMessageText.trim() || adminSendingMessage}
+       disabled={
+  adminSendingMessage ||
+  (!adminMessageText.trim() && !adminSelectedFile)
+}
       >
-        {adminSendingMessage ? "Sending..." : "Send"}
+        {adminUploadingAttachment
+  ? "Uploading..."
+  : adminSendingMessage
+    ? "Sending..."
+    : "Send"}
       </button>
     </div>
   </div>
