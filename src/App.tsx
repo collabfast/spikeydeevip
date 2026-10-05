@@ -5195,7 +5195,8 @@ function MemberMessagesPage({
 const [selectedFile, setSelectedFile] = useState<File | null>(null);
 const [attachmentPreview, setAttachmentPreview] = useState<string | null>(null);
 const [uploadingAttachment, setUploadingAttachment] = useState(false);
-
+const [ppvCheckoutUrl, setPpvCheckoutUrl] = useState<string | null>(null);
+const [ppvCheckoutWindow, setPpvCheckoutWindow] = useState<Window | null>(null);
 const [attachmentUrls, setAttachmentUrls] = useState<
   Record<string, string>
 >({});
@@ -5302,6 +5303,28 @@ setAttachmentUrls(signedUrls);
       setLoading(false);
     }
   };
+useEffect(() => {
+  const handlePpvCheckoutMessage = (event: MessageEvent) => {
+    if (event.origin !== window.location.origin) return;
+
+    if (event.data?.type === "SPIKEYDEE_PPV_PURCHASED") {
+      if (ppvCheckoutWindow && !ppvCheckoutWindow.closed) {
+        ppvCheckoutWindow.close();
+      }
+
+      setPpvCheckoutWindow(null);
+      setPpvCheckoutUrl(null);
+
+      void loadMessages();
+    }
+  };
+
+  window.addEventListener("message", handlePpvCheckoutMessage);
+
+  return () => {
+    window.removeEventListener("message", handlePpvCheckoutMessage);
+  };
+}, [ppvCheckoutWindow]);
 const markMemberMessagesRead = async (currentConversationId: string) => {
   if (!session?.user?.id) return;
 
@@ -5671,7 +5694,7 @@ if (!url && attachment.is_paid && attachment.price_cents) {
         );
       }
 
-      window.location.href = data.checkoutUrl;
+      setPpvCheckoutUrl(data.checkoutUrl);
     } catch (error) {
       console.error(
         "Could not start media checkout:",
@@ -5919,6 +5942,88 @@ if (!url) return null;
 </div>
 </div>
       </div>
+ {ppvCheckoutUrl && (
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 99999,
+          background: "rgba(0, 0, 0, 0.82)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "16px",
+        }}
+      >
+        <div
+          style={{
+            position: "relative",
+            width: "100%",
+            maxWidth: "760px",
+            height: "90vh",
+            background: "#fff",
+            borderRadius: "12px",
+            overflow: "hidden",
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setPpvCheckoutUrl(null)}
+            style={{
+              position: "absolute",
+              top: "10px",
+              right: "10px",
+              zIndex: 2,
+              width: "38px",
+              height: "38px",
+              borderRadius: "50%",
+              border: "none",
+              background: "#111",
+              color: "#fff",
+              fontSize: "22px",
+              cursor: "pointer",
+            }}
+            aria-label="Close checkout"
+          >
+            ×
+          </button>
+
+<div
+  style={{
+    width: "100%",
+    height: "100%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "24px",
+    boxSizing: "border-box",
+  }}
+>
+  <button
+    type="button"
+    onClick={() => {
+     const checkoutWindow = window.open(
+  ppvCheckoutUrl,
+  "spikeydeevip-ppv-checkout",
+  "popup=yes,width=720,height=850,resizable=yes,scrollbars=yes"
+);
+
+setPpvCheckoutWindow(checkoutWindow);
+    }}
+    style={{
+      border: 0,
+      borderRadius: "8px",
+      padding: "14px 22px",
+      fontWeight: 800,
+      cursor: "pointer",
+    }}
+  >
+    CONTINUE TO SECURE CHECKOUT
+  </button>
+</div>
+        </div>
+      </div>
+    )}
     </main>
   );
 }
@@ -15769,7 +15874,70 @@ const [, setActiveBrandStartIndex] = useState(0);
      not linked from public navigation. Supabase authentication
      remains the actual security layer.
      ======================================================= */
+useEffect(() => {
+  let cancelled = false;
 
+  const handlePpvReturn = async () => {
+    // Only run inside the CCBill popup.
+    if (!window.opener) return;
+
+    const params = new URLSearchParams(window.location.search);
+
+    const purchaseId =
+      params.get("purchase_id") ??
+      params.get("purchaseId");
+
+    const attachmentId =
+      params.get("attachment_id") ??
+      params.get("attachmentId");
+
+    // Normal page load — not a PPV checkout return.
+    if (!purchaseId || !attachmentId) return;
+
+    // Give the CCBill approval postback time to mark the purchase paid.
+    for (let attempt = 0; attempt < 20; attempt++) {
+      if (cancelled) return;
+
+      const { data: purchase, error } = await supabase
+        .from("message_attachment_purchases")
+        .select("id, attachment_id, status")
+        .eq("id", purchaseId)
+        .eq("attachment_id", attachmentId)
+        .eq("status", "paid")
+        .maybeSingle();
+
+      if (error) {
+        console.error("Could not verify PPV return:", error);
+      }
+
+      if (purchase) {
+        window.opener.postMessage(
+          {
+            type: "SPIKEYDEE_PPV_PURCHASED",
+            purchaseId,
+            attachmentId,
+          },
+          window.location.origin
+        );
+
+        window.close();
+        return;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 750));
+    }
+
+    console.error(
+      "PPV payment return timed out waiting for server confirmation."
+    );
+  };
+
+  void handlePpvReturn();
+
+  return () => {
+    cancelled = true;
+  };
+}, []);
   useEffect(() => {
     const syncStudioAuthRoute = () => {
       const path = window.location.pathname;
