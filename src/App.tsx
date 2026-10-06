@@ -5206,7 +5206,7 @@ const [attachmentUrls, setAttachmentUrls] = useState<
 
     try {
       const userId = session.user.id;
-
+console.log("MESSAGES USER ID", userId);
       let { data: conversation, error: conversationError } = await supabase
         .from("conversations")
         .select("id")
