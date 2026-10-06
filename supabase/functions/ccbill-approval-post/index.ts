@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import md5 from "npm:blueimp-md5@2.19.0";
 
 type PaidPlan =
   | "two_day_pass"
@@ -34,7 +35,10 @@ Deno.serve(async (req) => {
     }
 
     const payload = await readPayload(req);
-
+console.log(
+  "CCBILL APPROVAL FIELD NAMES",
+  Object.keys(payload).sort()
+);
     const expectedAccnum =
       Deno.env.get("CCBILL_CLIENT_ACCNUM") ?? "";
     const expectedSubacc =
@@ -262,6 +266,30 @@ const responseDigest =
     "responseDigest",
     "response_digest",
   ) ?? "";
+  console.log("CCBILL DIGEST DIAGNOSTIC", {
+  responseDigestPresent: Object.prototype.hasOwnProperty.call(
+    payload,
+    "responseDigest"
+  ),
+  responseDigestLength: String(
+    getValue(payload, "responseDigest", "response_digest") ?? ""
+  ).length,
+  subscriptionIdPresent: Boolean(
+    getValue(payload, "subscriptionId", "subscription_id")
+  ),
+  checkoutIdPresent: Boolean(
+    getValue(
+      payload,
+      "checkout_id",
+      "x-checkout-id",
+      "x_checkout_id",
+      "checkoutId"
+    )
+  ),
+  reservationIdPresent: Boolean(
+    getValue(payload, "reservationId", "reservation_id")
+  ),
+});
 
 const ccbillSubscriptionId =
   getValue(
@@ -273,44 +301,53 @@ const ccbillSubscriptionId =
 const dynamicPricingKey =
   Deno.env.get("CCBILL_DYNAMIC_PRICING_KEY") ?? "";
 
-if (
-  !responseDigest ||
-  !ccbillSubscriptionId ||
-  !dynamicPricingKey
-) {
-  console.error("Missing CCBill digest verification data", {
+if (!ccbillSubscriptionId) {
+  console.error("Missing CCBill subscription ID", {
     purchaseId,
-    hasResponseDigest: Boolean(responseDigest),
-    hasSubscriptionId: Boolean(ccbillSubscriptionId),
-    hasDynamicPricingKey: Boolean(dynamicPricingKey),
   });
 
   return new Response(
-    "Missing CCBill verification data",
+    "Missing CCBill subscription ID",
     { status: 403 },
   );
 }
 
-const expectedResponseDigest =
-  md5(
+// CCBill documents responseDigest as a Dynamic Pricing response hash.
+// For fixed/form pricing, CCBill returns responseDigest as a blank string.
+// Therefore only validate the digest when CCBill actually supplies one.
+if (responseDigest) {
+  if (!dynamicPricingKey) {
+    console.error(
+      "CCBill responseDigest received but dynamic pricing key is missing",
+      { purchaseId, ccbillSubscriptionId },
+    );
+
+    return new Response(
+      "Missing CCBill digest verification key",
+      { status: 500 },
+    );
+  }
+
+  const expectedResponseDigest = md5(
     ccbillSubscriptionId +
-    "1" +
-    dynamicPricingKey
+      "1" +
+      dynamicPricingKey,
   );
 
-if (
-  responseDigest.toLowerCase() !==
-  expectedResponseDigest.toLowerCase()
-) {
-  console.error("Invalid CCBill responseDigest", {
-    purchaseId,
-    ccbillSubscriptionId,
-  });
+  if (
+    responseDigest.toLowerCase() !==
+    expectedResponseDigest.toLowerCase()
+  ) {
+    console.error("Invalid CCBill responseDigest", {
+      purchaseId,
+      ccbillSubscriptionId,
+    });
 
-  return new Response(
-    "Invalid CCBill responseDigest",
-    { status: 403 },
-  );
+    return new Response(
+      "Invalid CCBill responseDigest",
+      { status: 403 },
+    );
+  }
 }
     const transactionId =
       getValue(

@@ -5206,7 +5206,6 @@ const [attachmentUrls, setAttachmentUrls] = useState<
 
     try {
       const userId = session.user.id;
-console.log("MESSAGES USER ID", userId);
       let { data: conversation, error: conversationError } = await supabase
         .from("conversations")
         .select("id")
@@ -5899,6 +5898,7 @@ if (!url) return null;
 
     <input
       value={messageText}
+      maxLength={100}
       onChange={(event) => setMessageText(event.target.value)}
       onKeyDown={(event) => {
         if (event.key === "Enter" && !event.shiftKey) {
@@ -5919,7 +5919,15 @@ if (!url) return null;
         outline: "none",
       }}
     />
-
+<span
+  style={{
+    fontSize: "11px",
+    color: "#888",
+    whiteSpace: "nowrap",
+  }}
+>
+  {messageText.length}/100
+</span>
     <button
       type="button"
       onClick={() => void sendMessage()}
@@ -11937,6 +11945,7 @@ onClick={() => {
       <input
         type="text"
         value={adminMessageText}
+        maxLength={100}
         onChange={(event) => setAdminMessageText(event.target.value)}
         placeholder="Reply to member..."
         style={{
@@ -11944,7 +11953,15 @@ onClick={() => {
           minWidth: 0,
         }}
       />
-
+<span
+  style={{
+    fontSize: "11px",
+    color: "#888",
+    whiteSpace: "nowrap",
+  }}
+>
+  {adminMessageText.length}/100
+</span>
       <button
         type="button"
         className="primary-button"
