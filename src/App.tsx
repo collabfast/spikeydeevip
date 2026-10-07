@@ -3034,12 +3034,12 @@ function CheckoutReturnModal({
     const checkStatus = async () => {
       attempts += 1;
 
-      const { data, error } = await supabase.functions.invoke(
-        "expires_at",
-        {
-          body: { checkoutId },
-        }
-      );
+const { data, error } = await supabase.functions.invoke(
+  "membership-status",
+  {
+    body: { checkoutId },
+  }
+);
 
       if (cancelled) return;
 
@@ -3828,6 +3828,9 @@ adminAccess:
   membership:
     MembershipState;
 
+    adminPreviewActive: boolean;
+adminPreviewEmail: string | null;
+
   onSaveDisplayName:
     (
       displayName:
@@ -3851,6 +3854,8 @@ function AccountPage({
   profileLoading,
   favoritesCount,
   membership,
+  adminPreviewActive,
+  adminPreviewEmail,
   onSaveDisplayName,
   onStudio,
   onLogout,
@@ -3901,6 +3906,36 @@ function AccountPage({
   const [accountNotice, setAccountNotice] = useState("");
   const [passwordBusy, setPasswordBusy] = useState(false);
 
+  const exitAdminMemberPreview = async () => {
+  const previewToken = window.sessionStorage.getItem(
+    "spikeydeevip_admin_preview_token"
+  );
+
+  if (previewToken) {
+    try {
+      await supabase.functions.invoke(
+        "admin-member-preview-end",
+        {
+          body: {
+            preview_token: previewToken,
+          },
+        }
+      );
+    } catch (error) {
+      console.error(
+        "Could not end admin member preview:",
+        error
+      );
+    }
+  }
+
+  window.sessionStorage.removeItem(
+    "spikeydeevip_admin_preview_token"
+  );
+
+  window.location.href = "/studio";
+};
+
   const membershipName =
     membership.level !== "none"
       ? PLAN_LABELS[membership.level as PaidPlan]
@@ -3943,6 +3978,48 @@ function AccountPage({
           className="content-section"
           style={{ paddingTop: "70px", paddingBottom: "90px" }}
         >
+         {adminPreviewActive && (
+  <div
+    style={{
+      marginBottom: "24px",
+      padding: "16px 18px",
+      border: "1px solid rgba(255, 196, 0, 0.35)",
+      borderRadius: "12px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: "16px",
+      flexWrap: "wrap",
+    }}
+  >
+    <div>
+      <div
+        style={{
+          fontSize: "11px",
+          letterSpacing: ".12em",
+          color: "var(--text-muted)",
+          marginBottom: "5px",
+        }}
+      >
+        VIEWING AS MEMBER
+      </div>
+
+      <strong>
+        {adminPreviewEmail ??
+          membership.customerEmail ??
+          "Member"}
+      </strong>
+    </div>
+
+    <button
+      type="button"
+      className="secondary-button"
+      onClick={() => void exitAdminMemberPreview()}
+    >
+      EXIT MEMBER PREVIEW
+    </button>
+  </div>
+)} 
           <div className="section-heading">
             <div>
               <span className="section-kicker">MEMBER ACCOUNT</span>
@@ -3990,7 +4067,11 @@ function AccountPage({
                   </div>
                   <div>
                     <div style={{ color: "var(--text-dim)", fontSize: "11px", letterSpacing: ".1em" }}>EMAIL</div>
-                    <strong>{session.user.email}</strong>
+                    <strong>
+  {adminPreviewActive
+    ? adminPreviewEmail ?? membership.customerEmail ?? session.user.email
+    : session.user.email}
+</strong>
                   </div>
                 </div>
               </section>
@@ -4009,20 +4090,34 @@ function AccountPage({
                   <label htmlFor="member-display-name" style={{ display: "block", marginBottom: "8px", color: "var(--text-muted)", fontSize: "12px" }}>
                     Display name
                   </label>
-                  <input
-                    id="member-display-name"
-                    value={displayName}
-                    onChange={(event) => setDisplayName(event.target.value)}
-                    placeholder="Display name"
-                    style={{ width: "100%" }}
-                  />
-                  <button type="submit" className="primary-button" disabled={saving} style={{ width: "100%", marginTop: "12px" }}>
-                    {saving ? "Saving..." : "Save Profile"}
-                  </button>
+                <input
+  id="member-display-name"
+  value={
+    adminPreviewActive
+      ? adminPreviewEmail ?? "Member"
+      : displayName
+  }
+  onChange={(event) => setDisplayName(event.target.value)}
+  placeholder="Display name"
+  disabled={adminPreviewActive}
+  style={{ width: "100%" }}
+/>
+               {!adminPreviewActive && (
+  <button
+    type="submit"
+    className="primary-button"
+    disabled={saving}
+    style={{ width: "100%", marginTop: "12px" }}
+  >
+    {saving ? "Saving..." : "Save Profile"}
+  </button>
+)}
                 </form>
-                <p style={{ margin: "18px 0 0", color: "var(--text-muted)" }}>
-                  Favorites: <strong style={{ color: "#fff" }}>{favoritesCount}</strong>
-                </p>
+              {!adminPreviewActive && (
+  <p style={{ margin: "18px 0 0", color: "var(--text-muted)" }}>
+    Favorites: <strong style={{ color: "#fff" }}>{favoritesCount}</strong>
+  </p>
+)}
               </section>
 
               <section
@@ -4036,24 +4131,52 @@ function AccountPage({
                 <span className="section-kicker">SECURITY & SUPPORT</span>
                 <h3 style={{ margin: "10px 0 18px", fontSize: "26px" }}>Account Actions</h3>
                 <div style={{ display: "grid", gap: "10px" }}>
-                  <button type="button" className="secondary-button" onClick={() => void sendPasswordReset()} disabled={passwordBusy} style={{ width: "100%" }}>
-                    {passwordBusy ? "Sending..." : "Change Password"}
-                  </button>
-                  <a
-                    className="secondary-button"
-                    href={`mailto:${BILLING_SUPPORT_EMAIL}`}
-                    style={{ width: "100%", boxSizing: "border-box", textAlign: "center", textDecoration: "none" }}
-                  >
-                    Billing Support
-                  </a>
-                 {adminAccess && (
-                    <button type="button" className="primary-button" onClick={onStudio} style={{ width: "100%" }}>
-                      Open Studio
-                    </button>
-                  )}
-                  <button type="button" className="secondary-button" onClick={onLogout} style={{ width: "100%" }}>
-                    Log Out
-                  </button>
+                {!adminPreviewActive && (
+  <button
+    type="button"
+    className="secondary-button"
+    onClick={() => void sendPasswordReset()}
+    disabled={passwordBusy}
+    style={{ width: "100%" }}
+  >
+    {passwordBusy ? "Sending..." : "Change Password"}
+  </button>
+)}
+
+<a
+  className="secondary-button"
+  href={`mailto:${BILLING_SUPPORT_EMAIL}`}
+  style={{
+    width: "100%",
+    boxSizing: "border-box",
+    textAlign: "center",
+    textDecoration: "none",
+  }}
+>
+  Billing Support
+</a>
+
+{!adminPreviewActive && adminAccess && (
+  <button
+    type="button"
+    className="primary-button"
+    onClick={onStudio}
+    style={{ width: "100%" }}
+  >
+    Open Studio
+  </button>
+)}
+
+{!adminPreviewActive && (
+  <button
+    type="button"
+    className="secondary-button"
+    onClick={onLogout}
+    style={{ width: "100%" }}
+  >
+    Log Out
+  </button>
+)} 
                 </div>
                 {accountNotice && (
                   <p role="status" style={{ margin: "16px 0 0", color: "var(--text-muted)", lineHeight: 1.5 }}>
@@ -11706,6 +11829,59 @@ const togglePublished = async (video: VideoRecord) => {
                     : "No expiration"}
                 </div>
               </div>
+              <button
+  type="button"
+  className="secondary-button"
+onClick={async () => {
+  try {
+    const { data, error } = await supabase.functions.invoke(
+      "admin-member-preview",
+      {
+        body: {
+          membership_id: member.id,
+        },
+      },
+    );
+
+    console.log("ADMIN PREVIEW RESPONSE:", {
+  data,
+  error,
+});
+
+    if (error) {
+      throw error;
+    }
+
+    if (!data?.ok || !data?.preview_token) {
+      throw new Error(
+        data?.message || "Could not start member preview.",
+      );
+    }
+
+    sessionStorage.setItem(
+      "spikeydeevip_admin_preview_token",
+      data.preview_token,
+    );
+
+    window.location.href = "/";
+  } catch (error) {
+    console.error("Could not start member preview:", error);
+
+    alert(
+      error instanceof Error
+        ? error.message
+        : "Could not start member preview.",
+    );
+  }
+}}
+  style={{
+    marginTop: "18px",
+    width: "100%",
+    minHeight: "44px",
+  }}
+>
+  VIEW AS MEMBER
+</button>
             </article>
           );
         })}
@@ -15999,11 +16175,24 @@ function MainApp() {
       null
     );
 
-const [accessOpen, setAccessOpen] = useState(
-  () =>
+const [accessOpen, setAccessOpen] = useState(() => {
+  const previewToken = window.sessionStorage.getItem(
+    "spikeydeevip_admin_preview_token"
+  );
+
+  // Never automatically open JOIN VIP while an admin member preview
+  // is being restored.
+  if (previewToken) {
+    return false;
+  }
+
+  return (
     window.location.pathname === "/signup" ||
-    window.sessionStorage.getItem("open_join_vip_after_age_gate") === "true"
-);
+    window.sessionStorage.getItem(
+      "open_join_vip_after_age_gate"
+    ) === "true"
+  );
+});
 
   const [
     membership,
@@ -16012,6 +16201,83 @@ const [accessOpen, setAccessOpen] = useState(
     useState<MembershipState>(
       loadStoredMembership
     );
+    const [adminPreviewEmail, setAdminPreviewEmail] =
+  useState<string | null>(null);
+
+const [adminPreviewActive, setAdminPreviewActive] =
+  useState(false);
+  useEffect(() => {
+    console.log("ADMIN PREVIEW EFFECT RAN");
+  const loadAdminMemberPreview = async () => {
+    const previewToken = window.sessionStorage.getItem(
+      "spikeydeevip_admin_preview_token"
+    );
+console.log("ADMIN PREVIEW TOKEN ON MOUNT:", previewToken);
+
+    if (!previewToken) {
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        "admin-member-preview-status",
+        {
+          body: {
+            preview_token: previewToken,
+          },
+        }
+      );
+
+      if (error) {
+        throw error;
+      }
+console.log("ADMIN PREVIEW STATUS RESPONSE:", {
+  data,
+  error,
+});
+      if (
+        !data?.ok ||
+        !data?.preview ||
+        !data.preview.access_active
+      ) {
+        window.sessionStorage.removeItem(
+          "spikeydeevip_admin_preview_token"
+        );
+        return;
+      }
+
+      const preview = data.preview;
+
+      setMembership({
+        level: preview.plan as PaidPlan,
+        expiresAt: preview.expires_at ?? null,
+        accessSessionId: preview.membership_id,
+        customerEmail: preview.customer_email ?? null,
+      });
+
+      setAdminPreviewEmail(
+        preview.customer_email ?? null
+      );
+
+      setAdminPreviewActive(true);
+      setAccessOpen(false);
+    } catch (error) {
+      console.error(
+        "Could not load admin member preview:",
+        error
+      );
+
+      window.sessionStorage.removeItem(
+        "spikeydeevip_admin_preview_token"
+      );
+
+      setAdminPreviewEmail(null);
+      setAdminPreviewActive(false);
+    }
+  };
+
+  void loadAdminMemberPreview();
+}, [window.location.pathname]);
 const [publicHeroSettings, setPublicHeroSettings] = useState<{
   featured_video_id: string | null;
   hero_title: string | null;
@@ -16854,6 +17120,13 @@ setPublicVideos(catalogItems);
   useEffect(() => {
     const loadPaidMembership =
       async () => {
+        const previewToken = window.sessionStorage.getItem(
+  "spikeydeevip_admin_preview_token"
+);
+
+if (previewToken) {
+  return;
+}
         if (!session?.user.id) {
           return;
         }
@@ -17792,6 +18065,12 @@ onNextVideo={() => {
           membership={
             membership
           }
+          adminPreviewActive={
+  adminPreviewActive
+}
+adminPreviewEmail={
+  adminPreviewEmail
+}
           onSaveDisplayName={
             saveDisplayName
           }
