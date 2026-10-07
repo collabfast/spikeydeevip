@@ -246,7 +246,9 @@ if (
     });
   }
 
-  const memberships = await membershipsResponse.json();
+  const allMemberships = await membershipsResponse.json();
+
+const memberships = allMemberships;
 
   const auditResults = [];
 
@@ -291,7 +293,10 @@ if (
         "returnXML",
         "1"
       );
-
+// Pace CCBill Data Link requests.
+// Sending subscription-status lookups back-to-back can cause
+// subsequent lookups to fail even though the credentials are valid.
+await new Promise((resolve) => setTimeout(resolve, 1500));
       const ccbillResponse = await fetch(ccbillUrl, {
         method: "GET",
         headers: {
@@ -379,26 +384,70 @@ if (
       let outOfSync = false;
       let reason = "OK";
 
-      // CCBill says customer is active but our access
-      // expiration is already in the past.
-      if (
-        statusNumber === 2 &&
-        supabaseExpired
-      ) {
-        outOfSync = true;
-        reason =
-          "CCBill active but Supabase access has expired";
-      }
+// CCBill is active AND has actually rebilled, but our
+// Supabase access has already expired.
+//
+// IMPORTANT:
+// subscriptionStatus === 2 alone does NOT prove a renewal.
+// A newly-created recurring subscription can remain active
+// while timesRebilled is still 0.
+if (
+  statusNumber === 2 &&
+  timesRebilled > 0 &&
+  supabaseExpired
+) {
+  outOfSync = true;
+  reason =
+    "CCBill successfully rebilled but Supabase access has expired";
+}
 
       // Supabase says expired while CCBill says active.
-      else if (
-        statusNumber === 2 &&
-        membership.status !== "active"
-      ) {
-        outOfSync = true;
-        reason =
-          "CCBill active but Supabase membership status is not active";
-      }
+// CCBill is inactive/cancelled.
+//
+// Do NOT treat cancellation by itself as an immediate access failure.
+// If CCBill supplies a future expirationDate, the customer remains
+// entitled through that paid-through date.
+else if (statusNumber === 0) {
+  const rawExpirationDate =
+  getXmlValue(xml, "expirationDate");
+
+  let ccbillExpiration = null;
+
+  if (
+    typeof rawExpirationDate === "string" &&
+    /^\d{14}$/.test(rawExpirationDate)
+  ) {
+    const year = Number(rawExpirationDate.slice(0, 4));
+    const month = Number(rawExpirationDate.slice(4, 6)) - 1;
+    const day = Number(rawExpirationDate.slice(6, 8));
+    const hour = Number(rawExpirationDate.slice(8, 10));
+    const minute = Number(rawExpirationDate.slice(10, 12));
+    const second = Number(rawExpirationDate.slice(12, 14));
+
+    ccbillExpiration = Date.UTC(
+      year,
+      month,
+      day,
+      hour,
+      minute,
+      second
+    );
+  }
+
+  const ccbillAccessExpired =
+    ccbillExpiration !== null &&
+    ccbillExpiration <= now;
+
+  if (
+    ccbillAccessExpired &&
+    membership.status === "active" &&
+    !supabaseExpired
+  ) {
+    outOfSync = true;
+    reason =
+      "CCBill paid-through period expired but Supabase still grants active access";
+  }
+}
 
       // CCBill says inactive but Supabase still grants access.
       else if (

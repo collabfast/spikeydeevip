@@ -12,7 +12,6 @@ const PLAN_URL_ENV: Record<PaidPlan, string> = {
   thirty_day: "CCBILL_30_DAY_URL",
   two_day_pass: "CCBILL_2_DAY_URL",
 };
-
 const allowedPlans = new Set<PaidPlan>([
   "lifetime",
   "twelve_month",
@@ -30,6 +29,7 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json();
     const checkOnly = body?.checkOnly === true
+    
 const plan = body?.plan as PaidPlan;
 const email = String(body?.email ?? "")
   .trim()
@@ -116,14 +116,14 @@ if (checkOnly) {
     available: true,
   });
 }
-    const checkoutBaseUrl =
-      Deno.env.get(PLAN_URL_ENV[plan]) ?? "";
+const checkoutBaseUrl =
+  Deno.env.get(PLAN_URL_ENV[plan]) ?? "";
 
     if (!checkoutBaseUrl) {
       return json(
         {
           ok: false,
-          message: `Missing ${PLAN_URL_ENV[plan]} Edge Function secret.`,
+         message: `Missing ${PLAN_URL_ENV[plan]} Edge Function secret.`,
         },
         500,
       );

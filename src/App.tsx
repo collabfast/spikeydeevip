@@ -3035,7 +3035,7 @@ function CheckoutReturnModal({
       attempts += 1;
 
       const { data, error } = await supabase.functions.invoke(
-        "membership-status",
+        "expires_at",
         {
           body: { checkoutId },
         }
@@ -6237,9 +6237,29 @@ type StudioDashboardTab =
   | "overview"
   | "homepage"
   | "videos"
+  | "members"
   | "messages"
   | "models"
-  | "compliance";
+  | "compliance"; 
+
+type StudioMemberBilling = {
+  id: string;
+  user_id: string | null;
+  customer_email: string;
+  checkout_id: string | null;
+  ccbill_subscription_id: string | null;
+  ccbill_transaction_id: string | null;
+  plan: string;
+  status: string;
+  starts_at: string | null;
+  expires_at: string | null;
+  created_at: string;
+  updated_at: string | null;
+
+  latest_ccbill_event?: string | null;
+  latest_ccbill_transaction_id?: string | null;
+  latest_ccbill_event_at?: string | null;
+};
 
 type StudioDashboardProps = {
   session: Session;
@@ -6299,6 +6319,11 @@ function StudioDashboard({
   const [studioTab, setStudioTab] =
     useState<StudioDashboardTab>("overview");
 
+const [memberBilling, setMemberBilling] =
+  useState<StudioMemberBilling[]>([]);
+const [memberBillingLoading, setMemberBillingLoading] =
+  useState(false);
+
 const [adminConversations, setAdminConversations] = useState<any[]>([]);
 const [adminSelectedConversationId, setAdminSelectedConversationId] =
   useState<string | null>(null);
@@ -6342,6 +6367,43 @@ if (tab === "messages") {
       });
     }, 0);
   };
+ const loadMemberBilling = async () => {
+  setMemberBillingLoading(true);
+
+  try {
+    const { data, error } = await supabase.functions.invoke(
+      "studio-members-billing",
+      {
+        body: {},
+      }
+    );
+
+    if (error) {
+      throw error;
+    }
+
+    if (!data?.ok) {
+      throw new Error(
+        data?.message ?? "Could not load member billing."
+      );
+    }
+
+    setMemberBilling(
+      Array.isArray(data.members) ? data.members : []
+    );
+  } catch (error) {
+    console.error("Could not load member billing:", error);
+    setMemberBilling([]);
+  } finally {
+    setMemberBillingLoading(false);
+  }
+};
+
+useEffect(() => {
+  if (studioTab === "members") {
+    void loadMemberBilling();
+  }
+}, [studioTab]);
   const loadAdminConversations = async () => {
   setAdminMessagesLoading(true);
   setAdminMessagesError("");
@@ -9960,14 +10022,15 @@ const togglePublished = async (video: VideoRecord) => {
             }}
           >
             {(
-              [
-                ["overview", "Overview"],
-                ["homepage", "Homepage"],
-                ["videos", "Videos"],
-                ["messages", "Messages"],
-                ["models", "Models"],
-                ["compliance", "Compliance & 2257"],
-              ] as Array<[StudioDashboardTab, string]>
+          [
+  ["overview", "Overview"],
+  ["homepage", "Homepage"],
+  ["videos", "Videos"],
+  ["members", "Members"],
+  ["messages", "Messages"],
+  ["models", "Models"],
+  ["compliance", "Compliance & 2257"],
+]as Array<[StudioDashboardTab, string]>
             ).map(([tab, label]) => {
               const active = studioTab === tab;
 
@@ -11508,6 +11571,149 @@ const togglePublished = async (video: VideoRecord) => {
 
             </>
           )}
+
+{studioTab === "members" && (
+  <div>
+    <div
+      style={{
+        padding: "26px",
+        border: "1px solid rgba(255,255,255,.09)",
+        borderRadius: "18px",
+        marginBottom: "20px",
+        background: "#101010",
+      }}
+    >
+      <span className="section-kicker">MEMBERS / BILLING</span>
+      <h2 style={{ margin: "8px 0" }}>Members</h2>
+      <p style={{ margin: 0, color: "var(--text-muted)" }}>
+        Membership access, CCBill subscriptions, renewals and billing status.
+      </p>
+    </div>
+
+    {memberBillingLoading ? (
+      <p style={{ color: "var(--text-muted)" }}>
+        Loading members...
+      </p>
+    ) : memberBilling.length === 0 ? (
+      <p style={{ color: "var(--text-muted)" }}>
+        No memberships found.
+      </p>
+    ) : (
+      <div style={{ display: "grid", gap: "12px" }}>
+        {memberBilling.map((member) => {
+          const expired =
+            Boolean(member.expires_at) &&
+            new Date(member.expires_at!).getTime() <= Date.now();
+
+          const renewalSuccess =
+            member.latest_ccbill_event === "RenewalSuccess";
+
+          const renewalFailure =
+            member.latest_ccbill_event === "RenewalFailure";
+
+          const needsReview =
+            expired &&
+            member.plan === "two_day_pass" &&
+            !renewalSuccess &&
+            !renewalFailure;
+
+          const paidButNoAccess =
+            expired && renewalSuccess;
+
+          return (
+            <article
+              key={member.id}
+              style={{
+                padding: "18px",
+                border: paidButNoAccess
+                  ? "1px solid rgba(255,80,80,.8)"
+                  : needsReview
+                    ? "1px solid rgba(255,190,60,.55)"
+                    : "1px solid rgba(255,255,255,.09)",
+                borderRadius: "14px",
+                background: "#101010",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: "16px",
+                  alignItems: "flex-start",
+                  flexWrap: "wrap",
+                }}
+              >
+                <div>
+                  <strong>{member.customer_email}</strong>
+
+                  <div
+                    style={{
+                      marginTop: "6px",
+                      color: "var(--text-muted)",
+                      fontSize: "13px",
+                    }}
+                  >
+                    {member.plan} · {member.status}
+                  </div>
+                </div>
+
+                {paidButNoAccess ? (
+                  <strong style={{ color: "#ff6b6b" }}>
+                    🔴 PAID BUT NO ACCESS
+                  </strong>
+                ) : needsReview ? (
+                  <strong style={{ color: "#f4bd50" }}>
+                    ⚠️ NEEDS REVIEW
+                  </strong>
+                ) : expired ? (
+                  <strong style={{ color: "var(--text-muted)" }}>
+                    EXPIRED
+                  </strong>
+                ) : (
+                  <strong>ACTIVE ACCESS</strong>
+                )}
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gap: "8px",
+                  marginTop: "16px",
+                  fontSize: "13px",
+                }}
+              >
+                <div>
+                  <strong>CCBill Subscription:</strong>{" "}
+                  {member.ccbill_subscription_id || "—"}
+                </div>
+
+                <div>
+                  <strong>Latest CCBill Event:</strong>{" "}
+                  {member.latest_ccbill_event || "No renewal event recorded"}
+                </div>
+
+                <div>
+                  <strong>Latest Transaction:</strong>{" "}
+                  {member.latest_ccbill_transaction_id ||
+                    member.ccbill_transaction_id ||
+                    "—"}
+                </div>
+
+                <div>
+                  <strong>Access Through:</strong>{" "}
+                  {member.expires_at
+                    ? new Date(member.expires_at).toLocaleString()
+                    : "No expiration"}
+                </div>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+    )}
+  </div>
+)}
+
 {studioTab === "messages" && (
   <>
     <div
@@ -14474,7 +14680,14 @@ function SiteHeader({
   <button
     type="button"
     className="signup-button"
-    onClick={session ? onAccount : onSubscribe}
+    onClick={() => {
+  if (session && accessActive) {
+    onAccount();
+    return;
+  }
+
+  onSubscribe();
+}}
     title={session && accessActive ? membershipLabel : undefined}
     style={{
       width: "156px",
@@ -16191,10 +16404,10 @@ if (path === "/messages") {
       await supabase.functions.invoke(
         "ccbill-checkout-start",
         {
-          body: {
-            plan,
-            email: normalizedEmail,
-          },
+body: {
+  plan,
+  email: normalizedEmail,
+},
         }
       );
 
@@ -18111,7 +18324,6 @@ until cancelled.
   {accessOpen &&
  !checkoutReturnOpen &&
  window.location.pathname !== "/checkout/return" &&
- window.location.pathname !== "/account" &&
  window.location.pathname !== "/messages" && (
         <AccessModal
           currentAccess={accessActive ? membership.level : "none"}
