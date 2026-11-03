@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   expandPublishedCatalogRecords,
+  isPhotoSetPublishBlocked,
   publishPhotoSetIfPopulated,
   uploadAndPersistPhotoSetFiles,
 } from '../src/lib/photo-set-workflow.ts';
@@ -333,4 +334,10 @@ test('photo-set publish is blocked on count errors or no persisted rows', async 
     false,
   );
   assert.equal(publishCalls, 0);
+});
+
+test('Studio photo-set publish is blocked while saving and available after save completes', () => {
+  assert.equal(isPhotoSetPublishBlocked('photo_set', true), true);
+  assert.equal(isPhotoSetPublishBlocked('photo_set', false), false);
+  assert.equal(isPhotoSetPublishBlocked('video', true), false);
 });

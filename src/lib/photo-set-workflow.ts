@@ -276,6 +276,13 @@ export async function publishPhotoSetIfPopulated(
   return true;
 }
 
+export function isPhotoSetPublishBlocked(
+  contentType: string | undefined,
+  saving: boolean,
+): boolean {
+  return contentType === "photo_set" && saving;
+}
+
 export function expandPublishedCatalogRecords<
   T extends {
     id: string;

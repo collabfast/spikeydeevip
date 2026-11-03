@@ -5,6 +5,7 @@ import * as tus from "tus-js-client";
 import { supabase } from "./lib/supabase";
 import {
   expandPublishedCatalogRecords,
+  isPhotoSetPublishBlocked,
   photoSetError,
   publishPhotoSetIfPopulated,
   uploadAndPersistPhotoSetFiles,
@@ -9637,6 +9638,8 @@ setForm((current) => ({
   };
 
 const togglePublished = async (video: VideoRecord) => {
+  if (isPhotoSetPublishBlocked(video.content_type, saving)) return;
+
   setErrorMessage("");
 
   if (video.content_type === "photo_set" && !video.is_published) {
@@ -14513,6 +14516,7 @@ onClick={() => {
                     <button
                       type="button"
                       className="primary-button"
+                      disabled={isPhotoSetPublishBlocked(video.content_type, saving)}
                       onClick={() => void togglePublished(video)}
                     >
                       {video.is_published ? "Unpublish" : "Publish"}
