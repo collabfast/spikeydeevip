@@ -66,6 +66,34 @@ export type PhotoSetUploadResult = {
   skippedCount: number;
 };
 
+export const PHOTO_SET_FEED_IMAGE_TRANSFORM = {
+  width: 1200,
+  quality: 80,
+  resize: "contain",
+} as const;
+
+export function firstPhotoSetFeedImageId(
+  items: ReadonlyArray<{ contentId: string; contentType?: string }>,
+): string | undefined {
+  return items.find((item) => item.contentType === "photo_set")?.contentId;
+}
+
+export function photoSetFeedUrl(
+  originalUrl: string,
+  createTransformedUrl: () => string,
+): string {
+  try {
+    const transformedUrl = createTransformedUrl();
+    if (!transformedUrl.trim()) return originalUrl;
+    const parsedUrl = new URL(transformedUrl);
+    return parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:"
+      ? transformedUrl
+      : originalUrl;
+  } catch {
+    return originalUrl;
+  }
+}
+
 function isDuplicateObjectError(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
 
@@ -296,7 +324,13 @@ export function expandPublishedCatalogRecords<
       sort_order: number;
     }>;
   },
->(records: T[], getPhotoUrl: (path: string) => string): T[] {
+>(
+  records: T[],
+  getPhotoUrls: (path: string) => {
+    feedUrl: string;
+    originalUrl: string;
+  },
+): T[] {
   return records
     .filter((record) => record.is_published)
     .flatMap((record) => {
@@ -304,11 +338,15 @@ export function expandPublishedCatalogRecords<
 
       return [...(record.photo_set_images ?? [])]
         .sort((a, b) => a.sort_order - b.sort_order)
-        .map((photo) => ({
-          ...record,
-          id: `${record.id}-${photo.id}`,
-          thumbnail_url: getPhotoUrl(photo.storage_path),
-          photo_count: 1,
-        }));
+        .map((photo) => {
+          const urls = getPhotoUrls(photo.storage_path);
+          return {
+            ...record,
+            id: `${record.id}-${photo.id}`,
+            thumbnail_url: urls.originalUrl,
+            feed_thumbnail_url: urls.feedUrl,
+            photo_count: 1,
+          };
+        });
     });
 }

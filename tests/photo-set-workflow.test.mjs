@@ -2,7 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   expandPublishedCatalogRecords,
+  firstPhotoSetFeedImageId,
   isPhotoSetPublishBlocked,
+  PHOTO_SET_FEED_IMAGE_TRANSFORM,
+  photoSetFeedUrl,
   publishPhotoSetIfPopulated,
   uploadAndPersistPhotoSetFiles,
 } from '../src/lib/photo-set-workflow.ts';
@@ -295,18 +298,77 @@ test('public catalog preserves single-photo and video behavior, expands multi-ph
   };
   const publicItems = expandPublishedCatalogRecords(
     [singlePhoto, multiPhoto, unpublished, video],
-    (path) => `public/${path}`,
+    (path) => ({
+      feedUrl: `https://storage.example/render/${path}`,
+      originalUrl: `https://storage.example/object/${path}`,
+    }),
   );
 
   assert.deepEqual(
     publicItems.map((item) => item.id),
     ['single-one', 'multi-one', 'multi-two', 'video'],
   );
-  assert.equal(publicItems[0].thumbnail_url, 'public/single/one');
-  assert.equal(publicItems[1].thumbnail_url, 'public/multi/one');
-  assert.equal(publicItems[2].thumbnail_url, 'public/multi/two');
+  assert.equal(publicItems[0].thumbnail_url, 'https://storage.example/object/single/one');
+  assert.equal(publicItems[0].feed_thumbnail_url, 'https://storage.example/render/single/one');
+  assert.equal(publicItems[1].thumbnail_url, 'https://storage.example/object/multi/one');
+  assert.equal(publicItems[1].feed_thumbnail_url, 'https://storage.example/render/multi/one');
+  assert.equal(publicItems[2].thumbnail_url, 'https://storage.example/object/multi/two');
+  assert.equal(publicItems[2].feed_thumbnail_url, 'https://storage.example/render/multi/two');
   assert.equal(publicItems[3], video);
   assert.equal(publicItems.some((item) => item.id.startsWith('draft-')), false);
+  assert.deepEqual(PHOTO_SET_FEED_IMAGE_TRANSFORM, {
+    width: 1200,
+    quality: 80,
+    resize: 'contain',
+  });
+});
+
+test('transformed photo URL falls back to the original when construction fails', () => {
+  const originalUrl = 'https://storage.example/object/photo';
+  const record = {
+    id: 'photo-set',
+    content_type: 'photo_set',
+    is_published: true,
+    thumbnail_url: null,
+    photo_set_images: [{ id: 'photo', storage_path: 'photo', sort_order: 0 }],
+  };
+  const expand = (createTransformedUrl) => expandPublishedCatalogRecords(
+    [record],
+    () => ({
+      originalUrl,
+      feedUrl: photoSetFeedUrl(originalUrl, createTransformedUrl),
+    }),
+  );
+  const transformedItems = expand(() => 'https://storage.example/render/photo');
+  const failedItems = expand(() => {
+    throw new Error('Transformation URL unavailable');
+  });
+  const invalidItems = expand(() => 'not a URL');
+
+  assert.equal(transformedItems[0].feed_thumbnail_url, 'https://storage.example/render/photo');
+  assert.equal(failedItems[0].thumbnail_url, 'https://storage.example/object/photo');
+  assert.equal(failedItems[0].feed_thumbnail_url, 'https://storage.example/object/photo');
+  assert.equal(invalidItems[0].feed_thumbnail_url, 'https://storage.example/object/photo');
+});
+
+test('first photo-set item in the filtered ordering is eager and subsequent items are lazy', () => {
+  const filteredItems = [
+    { contentId: 'video-first', contentType: 'video' },
+    { contentId: 'photo-first', contentType: 'photo_set' },
+    { contentId: 'video-next', contentType: 'video' },
+    { contentId: 'photo-next', contentType: 'photo_set' },
+  ];
+  const firstPhotoId = firstPhotoSetFeedImageId(filteredItems);
+
+  assert.equal(firstPhotoId, 'photo-first');
+  assert.equal(
+    firstPhotoId === filteredItems[1].contentId ? 'eager' : 'lazy',
+    'eager',
+  );
+  assert.equal(
+    firstPhotoId === filteredItems[3].contentId ? 'eager' : 'lazy',
+    'lazy',
+  );
 });
 
 test('photo-set publish is blocked on count errors or no persisted rows', async () => {

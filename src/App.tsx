@@ -5,7 +5,10 @@ import * as tus from "tus-js-client";
 import { supabase } from "./lib/supabase";
 import {
   expandPublishedCatalogRecords,
+  firstPhotoSetFeedImageId,
   isPhotoSetPublishBlocked,
+  PHOTO_SET_FEED_IMAGE_TRANSFORM,
+  photoSetFeedUrl,
   photoSetError,
   publishPhotoSetIfPopulated,
   uploadAndPersistPhotoSetFiles,
@@ -65,6 +68,7 @@ type ContentItem = {
   contentType?: "video" | "photo_set"; 
  contentGroup?: "solo_pics" | "solo_videos" | "collabs";
 photoCount?: number;
+feedImageUrl?: string;
   slug?: string;
   title: string;
   subtitle: string;
@@ -139,6 +143,7 @@ type VideoRecord = {
   series_name: string | null;
   badge: string | null;
   thumbnail_url: string | null;
+  feed_thumbnail_url?: string;
   preview_url: string | null;
   video_path?: string | null;
   bunny_video_id?: string | null;
@@ -627,6 +632,7 @@ photoCount: video.photo_count ?? 0,
       video.thumbnail_url ??
       video.bunny_thumbnail_url ??
       bunnyThumbnailUrl(video.bunny_video_id),
+    feedImageUrl: video.feed_thumbnail_url,
     bunnyVideoId: video.bunny_video_id ?? undefined,
     bunnyLibraryId: video.bunny_library_id ?? undefined,
     bunnyStatus: video.bunny_status ?? undefined,
@@ -1969,12 +1975,15 @@ type ContentCardProps = {
 
   favoriteBusy?:
     boolean;
+
+  imageLoading?: "eager" | "lazy";
 };
 
 function ContentCard({
   item,
   canWatch,
   onOpen,
+  imageLoading = "lazy",
 }: ContentCardProps) {
   return (
 <article
@@ -2009,8 +2018,14 @@ function ContentCard({
 /> 
 ) : item.thumbnailUrl ? (
 <img
-  src={item.thumbnailUrl}
+  src={
+    item.contentType === "photo_set"
+      ? item.feedImageUrl ?? item.thumbnailUrl
+      : item.thumbnailUrl
+  }
   alt={`${item.title} thumbnail`}
+  loading={item.contentType === "photo_set" ? imageLoading : undefined}
+  decoding={item.contentType === "photo_set" ? "async" : undefined}
   onLoad={(event) => {
     const img = event.currentTarget;
     const cardImage = img.closest(".card-image") as HTMLElement | null;
@@ -2184,12 +2199,19 @@ const filteredItems = items
       ? bTime - aTime
       : aTime - bTime;
   });
+  const firstPhotoSetId = firstPhotoSetFeedImageId(filteredItems);
   const renderCard = (item: ContentItem) => (
     <ContentCard
       key={item.contentId}
       item={item}
       canWatch={canWatchVideo(item)}
       onOpen={onOpen}
+      imageLoading={
+        item.contentType === "photo_set" &&
+        item.contentId === firstPhotoSetId
+          ? "eager"
+          : "lazy"
+      }
       isFavorite={favorites.includes(item.contentId)}
       onToggleFavorite={onToggleFavorite}
       favoriteBusy={favoriteBusyIds.includes(item.contentId)}
@@ -17096,10 +17118,20 @@ photo_set_images (
       if (!error) {
     const catalogItems = expandPublishedCatalogRecords(
       (data ?? []) as VideoRecord[],
-      (storagePath) =>
-        supabase.storage
-          .from("photo-sets")
-          .getPublicUrl(storagePath).data.publicUrl,
+      (storagePath) => {
+        const bucket = supabase.storage.from("photo-sets");
+        const originalUrl = bucket.getPublicUrl(storagePath).data.publicUrl;
+        return {
+          originalUrl,
+          feedUrl: photoSetFeedUrl(
+            originalUrl,
+            () =>
+              bucket.getPublicUrl(storagePath, {
+                transform: PHOTO_SET_FEED_IMAGE_TRANSFORM,
+              }).data.publicUrl,
+          ),
+        };
+      },
     );
 
 setPublicVideos(catalogItems);
