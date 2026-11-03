@@ -3,6 +3,12 @@ import type { CSSProperties, FormEvent, ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import * as tus from "tus-js-client";
 import { supabase } from "./lib/supabase";
+import {
+  expandPublishedCatalogRecords,
+  photoSetError,
+  publishPhotoSetIfPopulated,
+  uploadAndPersistPhotoSetFiles,
+} from "./lib/photo-set-workflow";
 import "./App.css";
 import spikeydeeVipLogo from "./assets/spikeydeevip-logo.png";
 import bimboyLogo from "./assets/bimboy-logo.png";
@@ -6934,107 +6940,47 @@ if (incoming.sender_role === "member") {
 
   setResumingPhotoSet(true);
 
-  const existingFileNames = new Set(
-    managedPhotos.map(
-      (photo) =>
-        photo.storage_path
-          .split("/")
-          .pop()
-          ?.replace(/^\d+-/, "") ?? photo.storage_path,
-    ),
-  );
-
-  let nextSortOrder =
-    Math.max(-1, ...managedPhotos.map((photo) => photo.sort_order)) + 1;
-  let nextFileNumber = managedPhotos.length + 1;
-  let skippedCount = 0;
-  const failedFiles: string[] = [];
-
-  const pendingRows: Array<{
-    content_id: string;
-    storage_path: string;
-    sort_order: number;
-    alt_text: null;
-  }> = [];
-
-  const savePendingRows = async () => {
-    if (pendingRows.length === 0) return;
-
-    const rowsToSave = [...pendingRows];
-
-    const { error } = await supabase
-      .from("photo_set_images")
-      .insert(rowsToSave);
-
-    if (error) throw error;
-
-    pendingRows.length = 0;
-  };
-
   try {
-    for (const file of files) {
-      const fileName = safeFileName(file.name);
-
-      if (existingFileNames.has(fileName)) {
-        skippedCount += 1;
-        continue;
-      }
-
-      const storagePath = `${managedPhotoSet.id}/${String(
-        nextFileNumber,
-      ).padStart(3, "0")}-${fileName}`;
-
-      const sortOrder = nextSortOrder;
-      nextFileNumber += 1;
-      nextSortOrder += 1;
-
-      let uploadError: unknown = null;
-
-      for (let attempt = 1; attempt <= 3; attempt += 1) {
-        const { error } = await supabase.storage
-          .from("photo-sets")
-          .upload(storagePath, file, {
-            contentType: file.type,
-            upsert: false,
-          });
-
-        if (!error) {
-          uploadError = null;
-          break;
-        }
-
-        uploadError = error;
-
-        if (attempt < 3) {
-          await new Promise((resolve) =>
-            window.setTimeout(resolve, 1_500),
-          );
-        }
-      }
-
-      if (uploadError) {
-        console.error(`Could not upload ${file.name}`, uploadError);
-        failedFiles.push(file.name);
-        continue;
-      }
-
-      pendingRows.push({
-        content_id: managedPhotoSet.id,
-        storage_path: storagePath,
-        sort_order: sortOrder,
-        alt_text: null,
-      });
-
-      existingFileNames.add(fileName);
-
-      if (pendingRows.length >= 10) {
-        await savePendingRows();
-      }
-
-      await new Promise((resolve) => window.setTimeout(resolve, 300));
-    }
-
-    await savePendingRows();
+    const result = await uploadAndPersistPhotoSetFiles(
+      managedPhotoSet.id,
+      files,
+      {
+        loadRows: async () => {
+          const { data, error } = await supabase
+            .from("photo_set_images")
+            .select("storage_path, sort_order")
+            .eq("content_id", managedPhotoSet.id)
+            .order("sort_order", { ascending: true });
+          return { data, error };
+        },
+        uploadObject: async (storagePath, file) => {
+          const { error } = await supabase.storage
+            .from("photo-sets")
+            .upload(storagePath, file, {
+              contentType: file.type,
+              upsert: false,
+            });
+          return { error };
+        },
+        insertRows: async (rows) => {
+          const { error } = await supabase
+            .from("photo_set_images")
+            .insert(rows);
+          return { error };
+        },
+        updatePhotoCount: async (count) => {
+          const { error } = await supabase
+            .from("videos")
+            .update({ photo_count: count })
+            .eq("id", managedPhotoSet.id);
+          return { error };
+        },
+        retryDelay: (milliseconds) =>
+          new Promise<void>((resolve) =>
+            window.setTimeout(resolve, milliseconds),
+          ),
+      },
+    );
 
     const { data, error: loadError } = await supabase
       .from("photo_set_images")
@@ -7045,25 +6991,18 @@ if (incoming.sender_role === "member") {
     if (loadError) throw loadError;
 
     const updatedPhotos = (data ?? []) as typeof managedPhotos;
-
-    const { error: countError } = await supabase
-      .from("videos")
-      .update({ photo_count: updatedPhotos.length })
-      .eq("id", managedPhotoSet.id);
-
-    if (countError) throw countError;
-
     setManagedPhotos(updatedPhotos);
     setMessage(
-      failedFiles.length === 0
-        ? `Photo set now has ${updatedPhotos.length} photos. ${skippedCount} existing photos were skipped.`
-        : `Photo set now has ${updatedPhotos.length} photos. ${failedFiles.length} uploads failed.`,
+      result.failedFiles.length === 0
+        ? `Photo set now has ${result.persistedCount} photos. ${result.skippedCount} existing photos were skipped.`
+        : `Photo set now has ${result.persistedCount} photos. ${result.failedFiles.length} file operation(s) failed: ${result.failedFiles.slice(0, 5).join("; ")}`,
     );
+    if (result.failedFiles.length > 0) {
+      setErrorMessage(result.failedFiles.slice(0, 5).join("; "));
+    }
     onCatalogChanged();
   } catch (error) {
-    setErrorMessage(
-      error instanceof Error ? error.message : "Photo resume failed.",
-    );
+    setErrorMessage(photoSetError("Photo resume", error));
   } finally {
     setResumingPhotoSet(false);
   }
@@ -9388,8 +9327,47 @@ const saveHeroSettings = async () => {
     let bunnyLibraryId = editingVideo?.bunny_library_id ?? null;
     let bunnyStatus = editingVideo?.bunny_status ?? null;
     let newThumbnailUrl: string | null = editingVideo?.thumbnail_url ?? null;
+    let wasPublished = editingVideo?.is_published ?? false;
 
     try {
+      if (
+        editingVideo &&
+        form.contentType === "photo_set" &&
+        form.isPublished &&
+        wasPublished
+      ) {
+        const { count, error } = await supabase
+          .from("photo_set_images")
+          .select("id", { count: "exact", head: true })
+          .eq("content_id", editingVideo.id);
+
+        if (error) {
+          throw new Error(
+            photoSetError(
+              "Photo metadata verification before saving published set",
+              error,
+            ),
+          );
+        }
+
+        if (!count) {
+          const { error: unpublishError } = await supabase
+            .from("videos")
+            .update({ is_published: false })
+            .eq("id", editingVideo.id);
+
+          if (unpublishError) {
+            throw new Error(
+              photoSetError(
+                "Unpublish empty photo set (videos)",
+                unpublishError,
+              ),
+            );
+          }
+          wasPublished = false;
+        }
+      }
+
    if (
   !editingVideo &&
   form.contentType === "video" &&
@@ -9452,7 +9430,8 @@ if (
           .from("videos")
           .update({
             ...payload,
-            ...(form.isPublished !== editingVideo.is_published
+            ...(form.isPublished !== wasPublished
+              && (form.contentType !== "photo_set" || !form.isPublished)
               ? { is_published: form.isPublished }
               : {}),
           })
@@ -9511,89 +9490,111 @@ if (
   : "Video uploaded to Bunny Stream and saved as a draft. Complete the compliance review, then publish it."
         );
       }
-if (form.contentType === "photo_set" && photoSetFiles.length > 0) {
+if (form.contentType === "photo_set") {
   if (!savedVideoId) {
     throw new Error("Photo set record could not be created.");
   }
 
-  setUploadStatus("Uploading photo set images…");
+  setUploadStatus("Uploading and saving photo set images…");
 
-  const imageRows: {
-    content_id: string;
-    storage_path: string;
-    sort_order: number;
-    alt_text: null;
-  }[] = [];
+  const photoUploadResult = await uploadAndPersistPhotoSetFiles(
+    savedVideoId,
+    photoSetFiles,
+    {
+      loadRows: async () => {
+        const { data, error } = await supabase
+          .from("photo_set_images")
+          .select("storage_path, sort_order")
+          .eq("content_id", savedVideoId);
+        return { data, error };
+      },
+      uploadObject: async (storagePath, file) => {
+        const { error } = await supabase.storage
+          .from("photo-sets")
+          .upload(storagePath, file, {
+            contentType: file.type,
+            upsert: false,
+          });
+        return { error };
+      },
+      insertRows: async (rows) => {
+        const { error } = await supabase
+          .from("photo_set_images")
+          .insert(rows);
+        return { error };
+      },
+      updatePhotoCount: async (count) => {
+        const { error } = await supabase
+          .from("videos")
+          .update({ photo_count: count })
+          .eq("id", savedVideoId);
+        return { error };
+      },
+      retryDelay: (milliseconds) =>
+        new Promise<void>((resolve) =>
+          window.setTimeout(resolve, milliseconds),
+        ),
+    },
+  );
 
-const failedPhotoUploads: string[] = [];
-
-for (const [index, file] of photoSetFiles.entries()) {
-  const storagePath = `${savedVideoId}/${String(index + 1).padStart(
-    3,
-    "0",
-  )}-${safeFileName(file.name)}`;
-
-  let uploadError: unknown = null;
-
-for (let attempt = 1; attempt <= 3; attempt += 1) {
-  const { error } = await supabase.storage
-    .from("photo-sets")
-    .upload(storagePath, file, {
-      contentType: file.type,
-      upsert: false,
-    });
-
-  if (!error) {
-    uploadError = null;
-    break;
+  if (photoUploadResult.failedFiles.length > 0) {
+    setErrorMessage(
+      `${photoUploadResult.failedFiles.length} photo operation(s) failed. A photo set cannot be published without a saved photo row. ${photoUploadResult.failedFiles.slice(0, 5).join("; ")}`,
+    );
+    setMessage(
+      `Photo set has ${photoUploadResult.persistedCount} persisted photos. Use Manage Photos to retry failed files.`,
+    );
+  } else {
+    setMessage(
+      `Photo set saved with ${photoUploadResult.persistedCount} photos. Complete the compliance review, then publish it.`,
+    );
   }
 
-  uploadError = error;
-
-  if (attempt < 3) {
-    await new Promise((resolve) => window.setTimeout(resolve, 1_500));
+  if (wasPublished && photoUploadResult.persistedCount === 0) {
+    const { error } = await supabase
+      .from("videos")
+      .update({ is_published: false })
+      .eq("id", savedVideoId);
+    if (error) {
+      throw new Error(
+        photoSetError("Unpublish empty photo set (videos)", error),
+      );
+    }
+    setErrorMessage("Photo set was unpublished because it has no persisted photos.");
+  } else if (
+    editingVideo &&
+    form.isPublished &&
+    !wasPublished &&
+    photoUploadResult.persistedCount > 0 &&
+    photoUploadResult.failedFiles.length === 0
+  ) {
+    const didPublish = await publishPhotoSetIfPopulated(
+      async () => {
+        const { count, error } = await supabase
+          .from("photo_set_images")
+          .select("id", { count: "exact", head: true })
+          .eq("content_id", savedVideoId);
+        return { count, error };
+      },
+      async () => {
+        const { error } = await supabase
+          .from("videos")
+          .update({ is_published: true })
+          .eq("id", savedVideoId);
+        return { error };
+      },
+    );
+    if (!didPublish) {
+      setErrorMessage("A photo set needs at least one saved photo before publishing.");
+    }
+  } else if (
+    editingVideo &&
+    form.isPublished &&
+    !wasPublished &&
+    photoUploadResult.persistedCount === 0
+  ) {
+    setErrorMessage("A photo set needs at least one saved photo before publishing.");
   }
-}
-
-if (uploadError) {
-  console.error(`Could not upload ${file.name}`, uploadError);
-  failedPhotoUploads.push(file.name);
-  continue;
-}
-
-await new Promise((resolve) => window.setTimeout(resolve, 300));
-
-  imageRows.push({
-    content_id: savedVideoId,
-    storage_path: storagePath,
-    sort_order: index,
-    alt_text: null,
-  });
-}
-
-  const { error: imagesError } = await supabase
-    .from("photo_set_images")
-    .insert(imageRows);
-
-  if (imagesError) {
-    throw imagesError;
-  }
-
-  const { error: countError } = await supabase
-    .from("videos")
-    .update({ photo_count: imageRows.length })
-    .eq("id", savedVideoId);
-
-  if (countError) {
-    throw countError;
-  }
-setMessage(
-  failedPhotoUploads.length === 0
-    ? `Photo set saved with ${imageRows.length} photos. Complete compliance review, then publish it.`
-    : `Photo set saved with ${imageRows.length} of ${photoSetFiles.length} photos. ${failedPhotoUploads
-        .slice(0, 5)
-        .join(", ")}${failedPhotoUploads.length > 5 ? "…" : ""}`,
-);
 }
       if (savedVideoId && hasAnyComplianceInput) {
         setUploadStatus("Saving production compliance links…");
@@ -9624,6 +9625,10 @@ setForm((current) => ({
     } catch (error) {
       const text = describeSupabaseError(error, "Upload failed.");
       console.error("Studio Bunny upload workflow failed:", error);
+      if (form.contentType === "photo_set" && savedVideoId) {
+        await loadVideos();
+        await onCatalogChanged();
+      }
       setErrorMessage(text);
       setUploadStatus("");
     } finally {
@@ -9634,14 +9639,45 @@ setForm((current) => ({
 const togglePublished = async (video: VideoRecord) => {
   setErrorMessage("");
 
-  const { error } = await supabase
-    .from("videos")
-    .update({ is_published: !video.is_published })
-    .eq("id", video.id);
+  if (video.content_type === "photo_set" && !video.is_published) {
+    try {
+      const didPublish = await publishPhotoSetIfPopulated(
+        async () => {
+          const { count, error } = await supabase
+            .from("photo_set_images")
+            .select("id", { count: "exact", head: true })
+            .eq("content_id", video.id);
+          return { count, error };
+        },
+        async () => {
+          const { error } = await supabase
+            .from("videos")
+            .update({ is_published: true })
+            .eq("id", video.id);
+          return { error };
+        },
+      );
 
-  if (error) {
-    setErrorMessage(`Could not update publishing: ${error.message}`);
-    return;
+      if (!didPublish) {
+        setErrorMessage(
+          "A photo set needs at least one saved photo before publishing. Use Manage Photos to upload or resume photos.",
+        );
+        return;
+      }
+    } catch (error) {
+      setErrorMessage(photoSetError("Photo set publish", error));
+      return;
+    }
+  } else {
+    const { error } = await supabase
+      .from("videos")
+      .update({ is_published: !video.is_published })
+      .eq("id", video.id);
+
+    if (error) {
+      setErrorMessage(`Could not update publishing: ${error.message}`);
+      return;
+    }
   }
 
   await loadVideos();
@@ -17054,24 +17090,13 @@ photo_set_images (
           );
 
       if (!error) {
-    const catalogItems = ((data ?? []) as VideoRecord[]).flatMap(
-  (video) => {
-    if (video.content_type !== "photo_set") {
-      return [video];
-    }
-
-    return (video.photo_set_images ?? [])
-      .sort((a, b) => a.sort_order - b.sort_order)
-      .map((photo) => ({
-        ...video,
-        id: `${video.id}-${photo.id}`,
-        thumbnail_url: supabase.storage
+    const catalogItems = expandPublishedCatalogRecords(
+      (data ?? []) as VideoRecord[],
+      (storagePath) =>
+        supabase.storage
           .from("photo-sets")
-          .getPublicUrl(photo.storage_path).data.publicUrl,
-        photo_count: 1,
-      }));
-  },
-);
+          .getPublicUrl(storagePath).data.publicUrl,
+    );
 
 setPublicVideos(catalogItems);
       } else {
