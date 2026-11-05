@@ -18530,7 +18530,7 @@ adminPreviewEmail={
   <div className="public-releases-heading">
     <div>
       <span className="public-releases-kicker">
-        MOST WATCHED
+        FEATURED RELEASES
       </span>
 
       <h2>
