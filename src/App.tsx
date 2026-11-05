@@ -16126,6 +16126,75 @@ function SiteFooter({ onLegal }: SiteFooterProps) {
    APP
    ========================================================= */
 
+type HomepageBannerCarouselState = {
+  activeIndex: number;
+  outgoingIndex: number | null;
+  phase: "active" | "prepare" | "transition";
+};
+
+function HomepageBannerArtwork({
+  banner,
+  outgoingBanner,
+  phase,
+  onIncomingReady,
+  onFadeComplete,
+}: {
+  banner: HomepageBanner;
+  outgoingBanner: HomepageBanner | null;
+  phase: HomepageBannerCarouselState["phase"];
+  onIncomingReady: (bannerId: string) => void;
+  onFadeComplete: (bannerId: string) => void;
+}) {
+  const renderBannerImage = (
+    imageBanner: HomepageBanner,
+    isActive: boolean,
+    onLoad?: () => void,
+    onTransitionEnd?: (event: React.TransitionEvent<HTMLImageElement>) => void
+  ) => (
+    <picture key={imageBanner.id}>
+      {imageBanner.mobile_image_url && (
+        <source
+          media="(max-width: 640px)"
+          srcSet={imageBanner.mobile_image_url}
+        />
+      )}
+      <img
+        className={`public-home-slide ${isActive ? "is-active" : ""}`}
+        src={imageBanner.image_url}
+        alt=""
+        aria-hidden="true"
+        loading="eager"
+        onLoad={onLoad}
+        onError={onLoad}
+        onTransitionEnd={onTransitionEnd}
+      />
+    </picture>
+  );
+
+  return (
+    <>
+      {outgoingBanner &&
+        renderBannerImage(
+          outgoingBanner,
+          phase === "prepare",
+          undefined,
+          (event) => {
+            if (event.propertyName === "opacity") {
+              onFadeComplete(outgoingBanner.id);
+            }
+          }
+        )}
+      {renderBannerImage(
+        banner,
+        phase !== "prepare",
+        phase === "prepare"
+          ? () => onIncomingReady(banner.id)
+          : undefined
+      )}
+    </>
+  );
+}
+
 function MainApp() {
   const [activeNav, setActiveNav] =
     useState<HeaderNavTab>("home");
@@ -16365,8 +16434,59 @@ const [homepageBanners, setHomepageBanners] = useState<HomepageBanner[]>([]);
 const [homepageBrands, setHomepageBrands] = useState<HomepageBrand[]>([]);
 const [homepageTiles, setHomepageTiles] = useState<HomepageTile[]>([]);
 const [homepagePerformers, setHomepagePerformers] = useState<HomepagePerformer[]>([]);
-const [activeBannerIndex, setActiveBannerIndex] = useState(0);
+const [bannerCarousel, setBannerCarousel] =
+  useState<HomepageBannerCarouselState>({
+    activeIndex: 0,
+    outgoingIndex: null,
+    phase: "active",
+  });
 const [, setActiveBrandStartIndex] = useState(0);
+
+const navigateBanner = (getNextIndex: (currentIndex: number) => number) => {
+  if (homepageBanners.length <= 1) return;
+
+  setBannerCarousel((current) => {
+    const currentIndex = Math.min(
+      current.activeIndex,
+      homepageBanners.length - 1
+    );
+    const nextIndex = getNextIndex(currentIndex);
+    if (nextIndex === currentIndex) return current;
+
+    if (
+      current.phase === "prepare" &&
+      current.outgoingIndex === nextIndex
+    ) {
+      return {
+        activeIndex: nextIndex,
+        outgoingIndex: null,
+        phase: "active",
+      };
+    }
+
+    if (
+      current.phase === "transition" &&
+      current.outgoingIndex === nextIndex
+    ) {
+      return {
+        activeIndex: nextIndex,
+        outgoingIndex: currentIndex,
+        phase: "transition",
+      };
+    }
+
+    const outgoingIndex =
+      current.phase === "prepare" && current.outgoingIndex !== null
+        ? current.outgoingIndex
+        : currentIndex;
+
+    return {
+      activeIndex: nextIndex,
+      outgoingIndex: Math.min(outgoingIndex, homepageBanners.length - 1),
+      phase: "prepare",
+    };
+  });
+};
   const [
     favorites,
     setFavorites,
@@ -17164,19 +17284,49 @@ setPublicVideos(catalogItems);
     if (accessActive || adminAccess || homepageBanners.length <= 1) return;
 
     const timer = window.setInterval(() => {
-      setActiveBannerIndex((current) =>
-        (current + 1) % homepageBanners.length
-      );
+      setBannerCarousel((current) => {
+        const currentIndex = Math.min(
+          current.activeIndex,
+          homepageBanners.length - 1
+        );
+        const outgoingIndex =
+          current.phase === "prepare" && current.outgoingIndex !== null
+            ? current.outgoingIndex
+            : currentIndex;
+        const nextIndex = (currentIndex + 1) % homepageBanners.length;
+
+        if (
+          current.phase === "prepare" &&
+          current.outgoingIndex === nextIndex
+        ) {
+          return {
+            activeIndex: nextIndex,
+            outgoingIndex: null,
+            phase: "active",
+          };
+        }
+
+        if (
+          current.phase === "transition" &&
+          current.outgoingIndex === nextIndex
+        ) {
+          return {
+            activeIndex: nextIndex,
+            outgoingIndex: currentIndex,
+            phase: "transition",
+          };
+        }
+
+        return {
+          activeIndex: nextIndex,
+          outgoingIndex: Math.min(outgoingIndex, homepageBanners.length - 1),
+          phase: "prepare",
+        };
+      });
     }, 6000);
 
     return () => window.clearInterval(timer);
   }, [accessActive, adminAccess, homepageBanners.length]);
-
-  useEffect(() => {
-    if (activeBannerIndex >= homepageBanners.length) {
-      setActiveBannerIndex(0);
-    }
-  }, [activeBannerIndex, homepageBanners.length]);
 
   useEffect(() => {
     const loadPaidMembership =
@@ -17861,21 +18011,51 @@ const openLegalPage = (
 
   const activeHomepageBanner =
     homepageBanners.length > 0
-      ? homepageBanners[Math.min(activeBannerIndex, homepageBanners.length - 1)]
+      ? homepageBanners[
+          Math.min(bannerCarousel.activeIndex, homepageBanners.length - 1)
+        ]
       : null;
+  const activeBannerIndex = Math.min(
+    bannerCarousel.activeIndex,
+    Math.max(0, homepageBanners.length - 1)
+  );
+  const outgoingHomepageBanner =
+    bannerCarousel.outgoingIndex === null
+      ? null
+      : homepageBanners[bannerCarousel.outgoingIndex] ?? null;
+
+  const onIncomingBannerReady = (bannerId: string) => {
+    window.requestAnimationFrame(() => {
+      setBannerCarousel((current) =>
+        current.phase === "prepare" &&
+        homepageBanners[current.activeIndex]?.id === bannerId
+          ? { ...current, phase: "transition" }
+          : current
+      );
+    });
+  };
+
+  const onBannerFadeComplete = (bannerId: string) => {
+    setBannerCarousel((current) =>
+      current.phase === "transition" &&
+      current.outgoingIndex !== null &&
+      homepageBanners[current.outgoingIndex]?.id === bannerId
+        ? { ...current, outgoingIndex: null, phase: "active" }
+        : current
+    );
+  };
 
   const showPreviousBanner = () => {
     if (homepageBanners.length <= 1) return;
-    setActiveBannerIndex((current) =>
-      (current - 1 + homepageBanners.length) % homepageBanners.length
+    navigateBanner(
+      (current) =>
+        (current - 1 + homepageBanners.length) % homepageBanners.length
     );
   };
 
   const showNextBanner = () => {
     if (homepageBanners.length <= 1) return;
-    setActiveBannerIndex((current) =>
-      (current + 1) % homepageBanners.length
-    );
+    navigateBanner((current) => (current + 1) % homepageBanners.length);
   };
 
   
@@ -18176,26 +18356,13 @@ adminPreviewEmail={
   >
     {homepageBanners.length > 0 && activeHomepageBanner ? (
       <>
-        {homepageBanners.map((banner, index) => (
-          <Fragment key={banner.id}>
-            <img
-              className={`public-home-slide public-home-slide-desktop ${
-                index === activeBannerIndex ? "is-active" : ""
-              }`}
-              src={banner.image_url}
-              alt=""
-              aria-hidden="true"
-            />
-            <img
-              className={`public-home-slide public-home-slide-mobile ${
-                index === activeBannerIndex ? "is-active" : ""
-              }`}
-              src={banner.mobile_image_url || banner.image_url}
-              alt=""
-              aria-hidden="true"
-            />
-          </Fragment>
-        ))}
+        <HomepageBannerArtwork
+          banner={activeHomepageBanner}
+          outgoingBanner={outgoingHomepageBanner}
+          phase={bannerCarousel.phase}
+          onIncomingReady={onIncomingBannerReady}
+          onFadeComplete={onBannerFadeComplete}
+        />
 
         <div className="public-home-slide-overlay" />
 
@@ -18265,7 +18432,7 @@ adminPreviewEmail={
                   key={banner.id}
                   type="button"
                   className={index === activeBannerIndex ? "is-active" : ""}
-                  onClick={() => setActiveBannerIndex(index)}
+                  onClick={() => navigateBanner(() => index)}
                   aria-label={`Show banner ${index + 1}`}
                 />
               ))}
