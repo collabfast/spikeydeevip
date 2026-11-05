@@ -1152,69 +1152,6 @@ function AccessModal({
 
 <section className="vip-proof-section">
 
-  {/* TESTIMONIALS */}
-
-  <div className="vip-testimonials">
-
-    <span className="section-kicker">
-      SPIKEYDEE VIP
-    </span>
-
-    <h2 className="vip-proof-title">
-      WHAT MEMBERS ARE SAYING
-    </h2>
-
-    <div className="vip-testimonial-grid">
-
-      <blockquote className="vip-testimonial">
-        <span className="vip-quote-mark">“</span>
-
-        <p>
-          SpikeyDeeVIP is easily one of my favorite memberships. The content
-    feels exclusive, the quality is great, and there’s always something
-    worth watching.
-        </p>
-
-        <footer>
-          VERIFIED MEMBER
-        </footer>
-      </blockquote>
-
-
-      <blockquote className="vip-testimonial">
-        <span className="vip-quote-mark">“</span>
-
-        <p>
-          I joined for Spikey Dee and ended up loving the whole site.
-    Everything feels much more personal and premium than the usual
-    subscription sites.
-        </p>
-
-        <footer>
-          VERIFIED MEMBER
-        </footer>
-      </blockquote>
-
-
-      <blockquote className="vip-testimonial">
-        <span className="vip-quote-mark">“</span>
-
-        <p>
-          The membership was completely worth it for me. Great content,
-    easy to use, and I love having access to the full collection
-    in one place.
-        </p>
-
-        <footer>
-          VERIFIED MEMBER
-        </footer>
-      </blockquote>
-
-    </div>
-
-  </div>
-
-
   {/* AWARD */}
 
   <div className="vip-award-section">
